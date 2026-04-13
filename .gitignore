@@ -208,3 +208,9 @@ __marimo__/
 
 # macOS ignorance
 .DS_Store
+
+# 仿真输出文件
+simulation_results*.json
+simulation_results*.txt
+*.output
+__pycache__/
