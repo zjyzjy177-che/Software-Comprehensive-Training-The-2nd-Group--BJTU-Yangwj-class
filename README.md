@@ -66,15 +66,18 @@ python main.py --visualize             # 启用可视化（预留功能）
 
 ```
 bjtu_canteen_simulation/
-├── models.py          # 数据模型：Student, Canteen, 策略接口
-├── engine.py          # 仿真引擎：SimulationEngine（Tick驱动）
-├── main.py            # 主程序入口：命令行接口
-├── test_simulation.py # 测试套件：单元测试、集成测试
-├── .gitignore         # Git忽略配置
-├── README.md          # 项目文档
-├── config.py          # [待实现] 配置模块：BJTU地图坐标
-├── visualizer.py      # [待实现] 可视化模块：Matplotlib动态渲染
-└── strategies/        # [待实现] 策略模块：多食堂选择算法
+├── models.py              # 数据模型：Student, Canteen, 策略接口
+├── engine.py              # 仿真引擎：SimulationEngine（Tick驱动）
+├── main.py                # 主程序入口：命令行接口
+├── test_simulation.py     # 测试套件：单元测试、集成测试
+├── config.py              # ✅ 配置模块：BJTU地图坐标、仿真参数（v1.3）
+├── strategies.py          # 🔄 策略模块：多食堂选择算法（模板完成）
+├── visualizer.py          # 🔄 可视化模块：Matplotlib动态渲染（模板完成）
+├── campus_bounds.json     # ✅ 校园边界和建筑坐标文件（v0.1）
+├── .gitignore             # Git忽略配置
+├── README.md              # 项目文档
+├── simulation_results.json # 仿真结果输出示例
+└── simulation_results_summary.txt # 仿真结果摘要
 ```
 
 ## 🏗️ 核心模块说明
@@ -176,13 +179,18 @@ python test_simulation.py --integration  # 集成测试
 - [x] 仿真引擎（engine.py）
 - [x] 主程序入口（main.py）
 - [x] 测试套件（test_simulation.py）
+- [x] 配置模块（config.py）：BJTU地图坐标、仿真参数、算法权重（v1.3）
+- [x] 校园边界文件（campus_bounds.json）：包含校园边界和32个建筑坐标（v0.1）
+- [x] 策略模块模板（strategies.py）：多食堂选择算法基础结构
+- [x] 可视化模块模板（visualizer.py）：Matplotlib动态渲染基础结构
 - [x] Git版本控制和文档
 
 ### 🔄 待实现
-- [ ] config.py：BJTU地图坐标和配置管理
-- [ ] strategies.py：多食堂选择算法
-- [ ] visualizer.py：Matplotlib动态可视化
+- [ ] strategies.py：实现完整的多食堂选择算法（模板已完成）
+- [ ] visualizer.py：实现完整的Matplotlib动态可视化功能（模板已完成）
 - [ ] 性能优化和大规模仿真测试
+- [ ] 错峰方案对比功能实现
+- [ ] GUI界面开发（Tkinter）
 
 ## 👥 团队协作流程
 
@@ -202,5 +210,5 @@ python test_simulation.py --integration  # 集成测试
 
 ---
 
-**项目状态**：核心仿真引擎已完成，支持后续扩展开发
+**项目状态**：核心仿真引擎已完成，配置模块（v1.3）和校园边界文件（v0.1）已就绪，策略和可视化模板已搭建，进入算法和UI开发阶段
 
