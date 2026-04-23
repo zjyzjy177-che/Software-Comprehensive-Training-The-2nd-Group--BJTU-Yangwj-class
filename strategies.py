@@ -47,27 +47,37 @@ class CanteenSelector:
     选择得分最低的食堂（得分越低表示越优）。
     """
 
-    def __init__(self, distance_weight: float = 0.7, queue_weight: float = 0.3,
-                 max_walk_distance: float = 500.0):
+    def __init__(self, algorithm_params: Dict[str, Any] = None,
+                 simulation_params: Dict[str, Any] = None):
         """
         初始化食堂选择器
 
         参数：
-        distance_weight: 距离权重（α），默认0.7
-        queue_weight: 排队人数权重（β），默认0.3
-        max_walk_distance: 最大步行距离（米），超过此距离的食堂不考虑
+        algorithm_params: 算法参数字典，包含distance_weight、queue_weight等
+        simulation_params: 仿真参数字典，包含window_counts、service_rates等
 
-        注意：权重之和建议为1.0，但不是强制要求。
-        可以通过调整权重改变算法行为。
+        如果未提供参数，使用config.py中的默认值。
         """
-        self.distance_weight = distance_weight
-        self.queue_weight = queue_weight
-        self.max_walk_distance = max_walk_distance
+        # 使用默认参数（与config.py对齐）
+        if algorithm_params is None:
+            algorithm_params = {}
+        if simulation_params is None:
+            simulation_params = {}
+
+        # 从algorithm_params获取参数，使用config.py默认值
+        self.distance_weight = algorithm_params.get('distance_weight', 0.3)
+        self.queue_weight = algorithm_params.get('queue_weight', 0.7)
+        self.max_walk_distance = algorithm_params.get('max_walk_distance', 1000.0)
+        self.prefer_near_canteen = algorithm_params.get('prefer_near_canteen', True)
+
+        # 从simulation_params获取食堂配置
+        self.window_counts = simulation_params.get('window_counts', [])
+        self.service_rates = simulation_params.get('service_rates', [])
 
         # 验证权重
-        if distance_weight < 0 or queue_weight < 0:
+        if self.distance_weight < 0 or self.queue_weight < 0:
             raise ValueError("权重不能为负数")
-        if distance_weight + queue_weight == 0:
+        if self.distance_weight + self.queue_weight == 0:
             raise ValueError("权重之和不能为0")
 
         # 统计信息
@@ -78,6 +88,31 @@ class CanteenSelector:
             'queue_based': 0,
             'balanced': 0
         }
+
+        print(f"食堂选择器初始化：距离权重={self.distance_weight}, 排队权重={self.queue_weight}, "
+              f"最大步行距离={self.max_walk_distance}米")
+
+    def _get_canteen_window_count(self, canteen: Canteen) -> int:
+        """
+        获取食堂的窗口数量
+
+        优先从配置的window_counts列表中获取，如果不存在则使用canteen.window_count
+        """
+        if self.window_counts and 0 <= canteen.canteen_id < len(self.window_counts):
+            return self.window_counts[canteen.canteen_id]
+        # 回退到canteen对象的window_count属性
+        return canteen.window_count if hasattr(canteen, 'window_count') else 5
+
+    def _get_canteen_service_rate(self, canteen: Canteen) -> float:
+        """
+        获取食堂的服务速率
+
+        优先从配置的service_rates列表中获取，如果不存在则使用默认值1.0
+        """
+        if self.service_rates and 0 <= canteen.canteen_id < len(self.service_rates):
+            return self.service_rates[canteen.canteen_id]
+        # 默认服务速率
+        return 1.0
 
     def select_best_canteen(self, student_pos: Tuple[float, float],
                            canteens: List[Canteen]) -> Optional[Canteen]:
@@ -138,9 +173,20 @@ class CanteenSelector:
             queue_length = canteen.get_total_queue_length()
             normalized_queue = queue_length / max_queue
 
+            # 获取食堂的窗口数量和服务速率
+            window_count = self._get_canteen_window_count(canteen)
+            service_rate = self._get_canteen_service_rate(canteen)
+
+            # 计算窗口效率因子（窗口越多、服务越快，效率越高）
+            # 避免除零，最小效率因子为0.1
+            efficiency_factor = max(window_count * service_rate, 0.1)
+
+            # 调整排队分数：效率越高，排队影响越小
+            adjusted_queue = normalized_queue / efficiency_factor
+
             # 计算综合得分
             score = (self.distance_weight * normalized_distance +
-                    self.queue_weight * normalized_queue)
+                    self.queue_weight * adjusted_queue)
 
             # 考虑食堂容量（排队人数接近容量时惩罚）
             capacity = canteen.capacity
@@ -312,10 +358,37 @@ class EnhancedDistanceStrategy(CanteenSelectionStrategy):
     主要考虑距离，但也会适当考虑排队情况。
     """
 
-    def __init__(self, max_distance: float = 500.0):
-        self.max_distance = max_distance
-        self.selector = CanteenSelector(distance_weight=0.9, queue_weight=0.1,
-                                       max_walk_distance=max_distance)
+    def __init__(self, algorithm_params: Dict[str, Any] = None,
+                 simulation_params: Dict[str, Any] = None,
+                 max_distance: float = None):
+        """
+        初始化距离优先策略
+
+        参数：
+        algorithm_params: 算法参数字典，优先使用
+        simulation_params: 仿真参数字典
+        max_distance: 最大步行距离（向后兼容，优先使用algorithm_params中的max_walk_distance）
+        """
+        if algorithm_params is None:
+            algorithm_params = {}
+        if simulation_params is None:
+            simulation_params = {}
+
+        # 优先使用algorithm_params中的max_walk_distance，否则使用max_distance参数
+        max_walk_distance = algorithm_params.get('max_walk_distance')
+        if max_walk_distance is None and max_distance is not None:
+            max_walk_distance = max_distance
+        elif max_walk_distance is None:
+            max_walk_distance = 500.0  # 默认值
+
+        # 设置距离优先的权重（距离权重0.9，排队权重0.1）
+        algorithm_params = algorithm_params.copy()  # 避免修改原始字典
+        algorithm_params['distance_weight'] = algorithm_params.get('distance_weight', 0.9)
+        algorithm_params['queue_weight'] = algorithm_params.get('queue_weight', 0.1)
+        algorithm_params['max_walk_distance'] = max_walk_distance
+
+        self.max_distance = max_walk_distance
+        self.selector = CanteenSelector(algorithm_params, simulation_params)
 
     def select_canteen(self, student: Student, canteens: List[Canteen]) -> Optional[Canteen]:
         """选择食堂（实现基类方法）"""
@@ -330,10 +403,37 @@ class EnhancedQueueStrategy(CanteenSelectionStrategy):
     主要考虑排队人数，适合高峰时段使用。
     """
 
-    def __init__(self, max_distance: float = 500.0):
-        self.max_distance = max_distance
-        self.selector = CanteenSelector(distance_weight=0.3, queue_weight=0.7,
-                                       max_walk_distance=max_distance)
+    def __init__(self, algorithm_params: Dict[str, Any] = None,
+                 simulation_params: Dict[str, Any] = None,
+                 max_distance: float = None):
+        """
+        初始化排队优先策略
+
+        参数：
+        algorithm_params: 算法参数字典，优先使用
+        simulation_params: 仿真参数字典
+        max_distance: 最大步行距离（向后兼容，优先使用algorithm_params中的max_walk_distance）
+        """
+        if algorithm_params is None:
+            algorithm_params = {}
+        if simulation_params is None:
+            simulation_params = {}
+
+        # 优先使用algorithm_params中的max_walk_distance，否则使用max_distance参数
+        max_walk_distance = algorithm_params.get('max_walk_distance')
+        if max_walk_distance is None and max_distance is not None:
+            max_walk_distance = max_distance
+        elif max_walk_distance is None:
+            max_walk_distance = 500.0  # 默认值
+
+        # 设置排队优先的权重（距离权重0.3，排队权重0.7）
+        algorithm_params = algorithm_params.copy()  # 避免修改原始字典
+        algorithm_params['distance_weight'] = algorithm_params.get('distance_weight', 0.3)
+        algorithm_params['queue_weight'] = algorithm_params.get('queue_weight', 0.7)
+        algorithm_params['max_walk_distance'] = max_walk_distance
+
+        self.max_distance = max_walk_distance
+        self.selector = CanteenSelector(algorithm_params, simulation_params)
 
     def select_canteen(self, student: Student, canteens: List[Canteen]) -> Optional[Canteen]:
         """选择食堂（实现基类方法）"""
@@ -348,10 +448,37 @@ class BalancedStrategy(CanteenSelectionStrategy):
     综合考虑距离和排队人数，使用动态权重调整。
     """
 
-    def __init__(self, max_distance: float = 500.0):
-        self.max_distance = max_distance
-        self.selector = CanteenSelector(distance_weight=0.7, queue_weight=0.3,
-                                       max_walk_distance=max_distance)
+    def __init__(self, algorithm_params: Dict[str, Any] = None,
+                 simulation_params: Dict[str, Any] = None,
+                 max_distance: float = None):
+        """
+        初始化平衡选择策略
+
+        参数：
+        algorithm_params: 算法参数字典，优先使用
+        simulation_params: 仿真参数字典
+        max_distance: 最大步行距离（向后兼容，优先使用algorithm_params中的max_walk_distance）
+        """
+        if algorithm_params is None:
+            algorithm_params = {}
+        if simulation_params is None:
+            simulation_params = {}
+
+        # 优先使用algorithm_params中的max_walk_distance，否则使用max_distance参数
+        max_walk_distance = algorithm_params.get('max_walk_distance')
+        if max_walk_distance is None and max_distance is not None:
+            max_walk_distance = max_distance
+        elif max_walk_distance is None:
+            max_walk_distance = 500.0  # 默认值
+
+        # 设置平衡权重（距离权重0.7，排队权重0.3）
+        algorithm_params = algorithm_params.copy()  # 避免修改原始字典
+        algorithm_params['distance_weight'] = algorithm_params.get('distance_weight', 0.7)
+        algorithm_params['queue_weight'] = algorithm_params.get('queue_weight', 0.3)
+        algorithm_params['max_walk_distance'] = max_walk_distance
+
+        self.max_distance = max_walk_distance
+        self.selector = CanteenSelector(algorithm_params, simulation_params)
 
     def select_canteen(self, student: Student, canteens: List[Canteen]) -> Optional[Canteen]:
         """选择食堂（实现基类方法）"""
@@ -359,13 +486,18 @@ class BalancedStrategy(CanteenSelectionStrategy):
 
 
 # 便捷函数：创建选择器
-def create_canteen_selector(strategy_type: str = "balanced", **kwargs) -> CanteenSelector:
+def create_canteen_selector(strategy_type: str = "balanced",
+                           algorithm_params: Dict[str, Any] = None,
+                           simulation_params: Dict[str, Any] = None,
+                           **kwargs) -> CanteenSelector:
     """
     创建食堂选择器
 
     参数：
     strategy_type: 策略类型，可选值："distance", "queue", "balanced"
-    **kwargs: 额外参数，传递给选择器构造函数
+    algorithm_params: 算法参数字典，包含distance_weight、queue_weight等
+    simulation_params: 仿真参数字典，包含window_counts、service_rates等
+    **kwargs: 向后兼容的额外参数（如max_distance）
 
     返回：
     CanteenSelector: 食堂选择器对象
@@ -380,7 +512,60 @@ def create_canteen_selector(strategy_type: str = "balanced", **kwargs) -> Cantee
         raise ValueError(f"未知策略类型：{strategy_type}，可选值：{list(strategy_map.keys())}")
 
     strategy_class = strategy_map[strategy_type]
-    return strategy_class(**kwargs)
+
+    # 处理向后兼容：如果algorithm_params和simulation_params未提供，尝试从kwargs提取
+    if algorithm_params is None:
+        algorithm_params = kwargs.get('algorithm_params', {})
+    if simulation_params is None:
+        simulation_params = kwargs.get('simulation_params', {})
+
+    # 提取max_distance参数（向后兼容）
+    max_distance = kwargs.get('max_distance')
+
+    return strategy_class(algorithm_params=algorithm_params,
+                         simulation_params=simulation_params,
+                         max_distance=max_distance)
+
+
+def create_selector_from_config(config: Any, strategy_type: str = "balanced") -> CanteenSelector:
+    """
+    从BJTUConfig对象创建食堂选择器
+
+    参数：
+    config: BJTUConfig配置对象或包含algorithm_params和simulation_params的字典
+    strategy_type: 策略类型，可选值："distance", "queue", "balanced"
+
+    返回：
+    CanteenSelector: 食堂选择器对象
+
+    此函数从config对象中提取algorithm_params和simulation_params，
+    然后创建相应的选择器。
+    """
+    # 动态导入以避免循环导入
+    try:
+        from config import BJTUConfig
+        is_bjtu_config = isinstance(config, BJTUConfig)
+    except ImportError:
+        # 如果无法导入BJTUConfig，假设config是字典
+        is_bjtu_config = False
+
+    if is_bjtu_config:
+        # 从BJTUConfig对象获取参数
+        algorithm_params = config.algorithm_params
+        simulation_params = config.simulation_params
+    elif isinstance(config, dict):
+        # 从字典获取参数
+        algorithm_params = config.get('algorithm_params', {})
+        simulation_params = config.get('simulation_params', {})
+    else:
+        raise TypeError(f"config必须是BJTUConfig类型或字典，实际类型：{type(config)}")
+
+    # 创建选择器
+    return create_canteen_selector(
+        strategy_type=strategy_type,
+        algorithm_params=algorithm_params,
+        simulation_params=simulation_params
+    )
 
 
 # 测试代码（当模块直接运行时执行）
@@ -410,8 +595,21 @@ if __name__ == "__main__":
 
         canteens.append(canteen)
 
-    # 创建选择器
-    selector = CanteenSelector(distance_weight=0.7, queue_weight=0.3)
+    # 测试1：使用字典配置创建选择器
+    print("\n测试1：使用字典配置创建选择器")
+    algorithm_params = {
+        'distance_weight': 0.3,
+        'queue_weight': 0.7,
+        'max_walk_distance': 1000.0,
+        'prefer_near_canteen': True
+    }
+    simulation_params = {
+        'window_counts': [10, 15, 3, 20],
+        'service_rates': [1.0, 1.0, 1.0, 1.0]
+    }
+
+    selector = CanteenSelector(algorithm_params=algorithm_params,
+                              simulation_params=simulation_params)
 
     # 测试选择
     student_pos = (50.0, 50.0)
@@ -422,16 +620,40 @@ if __name__ == "__main__":
         print(f"  位置：{best_canteen.position}")
         print(f"  排队人数：{best_canteen.get_total_queue_length()}")
 
-    # 测试策略模式
-    print("\n策略模式测试：")
-    balanced_strategy = BalancedStrategy()
+    # 测试2：使用策略模式
+    print("\n测试2：策略模式测试")
+    balanced_strategy = BalancedStrategy(algorithm_params=algorithm_params,
+                                        simulation_params=simulation_params)
     student = Student(student_id=1, position=(50.0, 50.0), destination=(0, 0))
     selected = balanced_strategy.select_canteen(student, canteens)
 
     if selected:
         print(f"平衡策略选择的食堂：{selected.name}")
 
+    # 测试3：使用create_canteen_selector函数
+    print("\n测试3：使用create_canteen_selector函数")
+    distance_selector = create_canteen_selector(
+        strategy_type="distance",
+        algorithm_params=algorithm_params,
+        simulation_params=simulation_params
+    )
+    selected2 = distance_selector.select_best_canteen(student_pos, canteens)
+    if selected2:
+        print(f"距离优先策略选择的食堂：{selected2.name}")
+
+    # 测试4：使用create_selector_from_config函数（模拟config字典）
+    print("\n测试4：使用create_selector_from_config函数")
+    mock_config = {
+        'algorithm_params': algorithm_params,
+        'simulation_params': simulation_params
+    }
+    config_selector = create_selector_from_config(mock_config, strategy_type="queue")
+    selected3 = config_selector.select_best_canteen(student_pos, canteens)
+    if selected3:
+        print(f"排队优先策略选择的食堂：{selected3.name}")
+
     # 打印统计信息
+    print("\n选择器统计信息：")
     selector.print_stats()
 
     print("\n测试完成！")

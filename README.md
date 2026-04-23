@@ -172,6 +172,66 @@ python test_simulation.py --engine    # 引擎测试
 python test_simulation.py --integration  # 集成测试
 ```
 
+## ⚙️ 算法配置指南
+
+### 1. 配置文件使用
+系统支持JSON格式的配置文件，可通过`--config`参数指定：
+
+```bash
+python main.py --config example_config.json
+```
+
+配置文件包含三个主要部分：
+- `coordinates`: BJTU校园建筑坐标
+- `simulation_params`: 仿真参数（周期数、学生数量、食堂位置等）
+- `algorithm_params`: 算法参数（距离权重、排队权重等）
+
+### 2. 算法参数说明
+在`algorithm_params`中可配置以下参数：
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `distance_weight` | 0.3 | 距离权重（α），值越大表示距离越重要 |
+| `queue_weight` | 0.7 | 排队人数权重（β），值越大表示排队人数越重要 |
+| `max_walk_distance` | 1000.0 | 最大步行距离（米），超过此距离的食堂不考虑 |
+| `prefer_near_canteen` | true | 是否优先选择近的食堂 |
+
+**权重公式**：`score = α × 归一化距离 + β × 归一化排队人数`
+
+### 3. 策略类型
+系统支持三种选择策略，可通过修改`algorithm_params`调整：
+
+1. **距离优先**：`distance_weight=0.9, queue_weight=0.1`
+2. **排队优先**：`distance_weight=0.3, queue_weight=0.7`（默认）
+3. **平衡策略**：`distance_weight=0.7, queue_weight=0.3`
+
+### 4. 食堂效率因子
+算法还考虑食堂的窗口数量和服务速率：
+- **窗口数量**：窗口越多，排队处理能力越强
+- **服务速率**：速率越高，服务速度越快
+- **效率因子**：`窗口数量 × 服务速率`，效率越高排队影响越小
+
+### 5. 示例配置
+```json
+{
+  "algorithm_params": {
+    "distance_weight": 0.4,
+    "queue_weight": 0.6,
+    "max_walk_distance": 800.0,
+    "prefer_near_canteen": true
+  },
+  "simulation_params": {
+    "window_counts": [10, 15, 3, 20],
+    "service_rates": [1.0, 1.0, 1.0, 1.0]
+  }
+}
+```
+
+### 6. 动态权重调整
+算法支持根据仿真进度动态调整权重：
+- **高峰时段**（仿真中期）：增加`queue_weight`
+- **非高峰时段**（仿真开始/结束）：增加`distance_weight`
+
 ## 📝 开发进度
 
 ### ✅ 已完成
@@ -186,11 +246,18 @@ python test_simulation.py --integration  # 集成测试
 - [x] Git版本控制和文档
 
 ### 🔄 待实现
-- [ ] strategies.py：实现完整的多食堂选择算法（模板已完成）
 - [ ] visualizer.py：实现完整的Matplotlib动态可视化功能（模板已完成）
 - [ ] 性能优化和大规模仿真测试
 - [ ] 错峰方案对比功能实现
 - [ ] GUI界面开发（Tkinter）
+
+### ✅ 新增完成（2026/04/23）
+- [x] strategies.py：完整的多食堂选择算法实现，支持：
+  - 距离权重（α）和排队权重（β）配置
+  - 食堂效率因子（窗口数量×服务速率）
+  - 动态权重调整（高峰/非高峰时段）
+  - 与config.py和engine.py的完整集成
+  - 三种策略类型：距离优先、排队优先、平衡策略
 
 ## 👥 团队协作流程
 
@@ -210,5 +277,5 @@ python test_simulation.py --integration  # 集成测试
 
 ---
 
-**项目状态**：核心仿真引擎已完成，配置模块（v1.3）和校园边界文件（v0.1）已就绪，策略和可视化模板已搭建，进入算法和UI开发阶段
+**项目状态**：核心仿真引擎已完成，配置模块（v1.3）和校园边界文件（v0.1）已就绪，**多食堂选择算法已完整实现并集成**，可视化模板已搭建，进入UI开发和可视化实现阶段
 

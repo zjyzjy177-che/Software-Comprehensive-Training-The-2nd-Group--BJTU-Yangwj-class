@@ -23,6 +23,7 @@ import random
 import time
 from typing import List, Dict, Tuple, Any, Optional
 from models import Student, Canteen, StudentState
+from strategies import create_selector_from_config, CanteenSelector
 
 
 class SimulationEngine:
@@ -120,6 +121,9 @@ class SimulationEngine:
             'student_state_counts': {}  # 学生状态统计
         }
 
+        # 食堂选择器（使用strategies.py中的算法）
+        self.canteen_selector = self._create_canteen_selector()
+
         # 初始化环境
         self._initialize_environment()
 
@@ -156,6 +160,47 @@ class SimulationEngine:
                 default_config[key] = value
 
         return default_config
+
+    def _create_canteen_selector(self) -> CanteenSelector:
+        """
+        创建食堂选择器（内部方法）
+
+        从配置中提取算法参数和仿真参数，创建CanteenSelector对象。
+        支持从config字典或BJTUConfig对象创建。
+
+        返回：
+        CanteenSelector: 食堂选择器对象
+        """
+        # 从配置中提取算法参数和仿真参数
+        algorithm_params = self.config.get('algorithm_params', {})
+        simulation_params = self.config.get('simulation_params', {})
+
+        # 如果配置中没有algorithm_params，使用默认值
+        if not algorithm_params:
+            algorithm_params = {
+                'distance_weight': 0.3,
+                'queue_weight': 0.7,
+                'max_walk_distance': 1000.0,
+                'prefer_near_canteen': True
+            }
+
+        # 如果配置中没有simulation_params，从config中提取相关参数
+        if not simulation_params:
+            simulation_params = {
+                'window_counts': self.config.get('window_counts', []),
+                'service_rates': self.config.get('service_rates', []),
+                'canteen_positions': self.config.get('canteen_positions', [])
+            }
+
+        # 创建选择器
+        selector = CanteenSelector(
+            algorithm_params=algorithm_params,
+            simulation_params=simulation_params
+        )
+
+        print(f"食堂选择器创建完成：距离权重={algorithm_params.get('distance_weight', 0.3)}, "
+              f"排队权重={algorithm_params.get('queue_weight', 0.7)}")
+        return selector
 
     def _initialize_environment(self) -> None:
         """
@@ -228,8 +273,16 @@ class SimulationEngine:
                 # 随机生成起始位置（在地图边界内）
                 position = self._generate_random_position()
 
-            # 选择目标食堂（初始实现：随机选择）
-            target_canteen = random.choice(self.canteens) if self.canteens else None
+            # 选择目标食堂（使用智能选择器）
+            target_canteen = None
+            if self.canteens and hasattr(self, 'canteen_selector') and self.canteen_selector:
+                # 使用选择器选择最优食堂
+                target_canteen = self.canteen_selector.select_best_canteen(position, self.canteens)
+
+            # 如果选择器没有选择到食堂，回退到随机选择
+            if target_canteen is None and self.canteens:
+                target_canteen = random.choice(self.canteens)
+                print(f"警告：学生{i}使用选择器未选择到食堂，回退到随机选择")
 
             if target_canteen:
                 # 创建学生对象
@@ -243,6 +296,9 @@ class SimulationEngine:
 
                 # 设置目标食堂ID
                 student.target_canteen_id = target_canteen.canteen_id
+
+                # 为学生设置选择策略（可选，供后续扩展使用）
+                # student.selection_strategy = self.canteen_selector
 
                 self.students.append(student)
                 self.global_statistics['total_students_generated'] += 1
@@ -326,8 +382,17 @@ class SimulationEngine:
             # 随机起始位置
             start_position = self._generate_random_position()
 
-            # 选择目标食堂（随机选择）
-            target_canteen = random.choice(self.canteens) if self.canteens else None
+            # 选择目标食堂（使用智能选择器）
+            target_canteen = None
+            if self.canteens and hasattr(self, 'canteen_selector') and self.canteen_selector:
+                # 使用选择器选择最优食堂
+                target_canteen = self.canteen_selector.select_best_canteen(start_position, self.canteens)
+
+            # 如果选择器没有选择到食堂，回退到随机选择
+            if target_canteen is None and self.canteens:
+                target_canteen = random.choice(self.canteens)
+                if self.current_tick % 50 == 0:  # 减少日志频率
+                    print(f"Tick {self.current_tick}: 选择器未选择到食堂，回退到随机选择")
 
             if target_canteen:
                 # 创建学生对象
