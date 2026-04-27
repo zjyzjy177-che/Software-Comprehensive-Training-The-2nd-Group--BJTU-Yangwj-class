@@ -95,7 +95,7 @@ class CanteenVisualizer:
         self.ax_pie = None          # 饼图子图
         self.animation = None       # 动画对象
         self.is_paused = False      # 暂停状态
-        self.animation_speed = 50   # 动画速度（毫秒）
+        self.animation_speed = 200  # 动画速度（毫秒），默认较慢便于观察
 
         # 图形元素集合
         self.student_points = []    # 学生点对象

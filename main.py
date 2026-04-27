@@ -365,7 +365,7 @@ def run_simulation(config: Dict[str, Any], quiet_mode: bool = False) -> Simulati
                         engine.end_time = time.time()
                     engine.print_summary()
 
-                visualizer.start_animation(update_frame)
+                visualizer.start_animation(update_frame, interval=200)
                 visualizer.show()
         else:
             # --- 无可视化模式：批量运行 ---

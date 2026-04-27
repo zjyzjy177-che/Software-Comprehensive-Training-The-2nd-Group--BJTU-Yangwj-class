@@ -62,7 +62,7 @@ def test_visualizer_init():
     check("xlim 正确", viz.ax_map.get_xlim()[0] < -250)
     check("ylim 正确", viz.ax_map.get_ylim()[0] < -400)
     check("暂停状态初始为 False", viz.is_paused is False)
-    check("animation_speed=50", viz.animation_speed == 50)
+    check("animation_speed=200", viz.animation_speed == 200)
 
     print(f"    地图范围: {map_bounds}")
     print(f"    颜色配置: {list(viz.colors.keys())}")
@@ -233,7 +233,7 @@ def test_full_animation():
             engine.is_running = False
         return engine.current_tick, engine.active_students, engine.canteens
 
-    viz.start_animation(update_frame, interval=100)
+    viz.start_animation(update_frame, interval=200)
     viz.show()
     engine.print_summary()
 
