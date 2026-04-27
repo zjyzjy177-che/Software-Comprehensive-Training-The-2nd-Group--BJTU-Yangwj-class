@@ -72,7 +72,7 @@ bjtu_canteen_simulation/
 ├── test_simulation.py     # 测试套件：单元测试、集成测试
 ├── config.py              # ✅ 配置模块：BJTU地图坐标、仿真参数（v1.3）
 ├── strategies.py          # 🔄 策略模块：多食堂选择算法（模板完成）
-├── visualizer.py          # 🔄 可视化模块：Matplotlib动态渲染（模板完成）
+├── visualizer.py          # ✅ 可视化模块：Matplotlib动态渲染、校园底图加载、真实坐标对齐（v1.1）
 ├── campus_bounds.json     # ✅ 校园边界和建筑坐标文件（v0.1）
 ├── .gitignore             # Git忽略配置
 ├── README.md              # 项目文档
@@ -131,14 +131,18 @@ bjtu_canteen_simulation/
    - 权重公式：`score = α × 距离 + β × 排队人数`
 
 ### 实现可视化模块（组员C）
-1. **visualizer.py**：Matplotlib动态渲染
-   - `draw_frame(tick, students, canteens)`：2D平面绘图
-   - 实时统计图：排队人数曲线动态刷新
-   - 跨平台字体适配：自动检测macOS/Windows系统
+1. **visualizer.py**：Matplotlib动态渲染（v1.1）
+   - `__init__(map_boundaries, title)`：地图范围与campus_bounds.json对齐（-250,-400）-（450,200）
+   - `draw_frame(tick, students, canteens)`：2D平面绘图，支持学生状态颜色区分（行走蓝/排队红/用餐绿/离开紫）
+   - 校园底图加载：自动检测并加载campus_map.png作为底图背景
+   - 实时统计图：排队人数曲线动态刷新 + 学生状态分布饼图 + 信息面板
+   - 跨平台字体适配：支持Windows（微软雅黑）、macOS（PingFang）、Linux（文泉驿）
+   - 交互控制：空格键暂停/继续、上下箭头调速、R键重置视图
 2. **性能优化**：
    - 使用`FuncAnimation`实现动画
    - 增量更新，避免全量重绘
-   - 大数据量下的渲染优化
+   - 更新频率节流（学生超过100人时限制最小间隔）
+   - 历史数据长度限制（最大200条）防止内存溢出
 
 ### 接口对齐要求
 - 所有模块必须与`engine.py`的`SimulationEngine`接口对齐
@@ -241,12 +245,11 @@ python main.py --config example_config.json
 - [x] 测试套件（test_simulation.py）
 - [x] 配置模块（config.py）：BJTU地图坐标、仿真参数、算法权重（v1.3）
 - [x] 校园边界文件（campus_bounds.json）：包含校园边界和32个建筑坐标（v0.1）
-- [x] 策略模块模板（strategies.py）：多食堂选择算法基础结构
-- [x] 可视化模块模板（visualizer.py）：Matplotlib动态渲染基础结构
+- [x] 策略模块（strategies.py）：多食堂选择算法完整实现
+- [x] 可视化模块（visualizer.py）：Matplotlib动态渲染、校园底图加载、真实坐标对齐（v1.1）
 - [x] Git版本控制和文档
 
 ### 🔄 待实现
-- [ ] visualizer.py：实现完整的Matplotlib动态可视化功能（模板已完成）
 - [ ] 性能优化和大规模仿真测试
 - [ ] 错峰方案对比功能实现
 - [ ] GUI界面开发（Tkinter）
@@ -258,6 +261,17 @@ python main.py --config example_config.json
   - 动态权重调整（高峰/非高峰时段）
   - 与config.py和engine.py的完整集成
   - 三种策略类型：距离优先、排队优先、平衡策略
+
+### ✅ 新增完成（2026/04/27）
+- [x] visualizer.py v1.1：可视化模块功能完善，包括：
+  - 地图范围与campus_bounds.json对齐（-250,-400）-（450,200）
+  - 校园底图自动加载（campus_map.png）
+  - 测试数据使用三个真实食堂坐标（四食堂、一食堂、学活食堂）
+  - 交互控制：空格暂停/继续、上下箭头调速、R键重置视图
+  - 实时统计：排队人数曲线+状态分布饼图+信息面板
+  - 跨平台字体适配：支持Windows/macOS/Linux中文字体
+  - 缺陷修复：修复窗口关闭TclError和tight_layout兼容性警告
+  - 性能优化：增量更新、更新频率节流、历史数据长度限制
 
 ## 👥 团队协作流程
 
@@ -277,5 +291,5 @@ python main.py --config example_config.json
 
 ---
 
-**项目状态**：核心仿真引擎已完成，配置模块（v1.3）和校园边界文件（v0.1）已就绪，**多食堂选择算法已完整实现并集成**，可视化模板已搭建，进入UI开发和可视化实现阶段
+**项目状态**：核心仿真引擎已完成，配置模块（v1.3）和校园边界文件（v0.1）已就绪，**多食堂选择算法已完整实现并集成**，**可视化模块已完善（v1.1）**，进入性能优化和GUI开发阶段
 

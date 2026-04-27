@@ -52,7 +52,7 @@ class CanteenVisualizer:
     4. 健壮性：处理各种边界情况和异常
     """
 
-    def __init__(self, map_boundaries: Tuple[float, float, float, float] = (0, 0, 1000, 800),
+    def __init__(self, map_boundaries: Tuple[float, float, float, float] = (-250, -400, 450, 200),
                  title: str = "BJTU食堂就餐流量仿真"):
         """
         初始化可视化器
@@ -241,6 +241,19 @@ class CanteenVisualizer:
         self.ax_map.grid(True, linestyle='--', alpha=0.3, color=self.colors['grid'])
         self.ax_map.set_facecolor('#FFFFFF')
 
+        # 加载真实校园底图图片（如有）
+        try:
+            import matplotlib.image as mpimg
+            img_path = os.path.join(os.path.dirname(__file__), 'campus_map.png')
+            if os.path.exists(img_path):
+                img = mpimg.imread(img_path)
+                self.ax_map.imshow(img, extent=[self.x_min, self.x_max, self.y_min, self.y_max], aspect='auto', alpha=0.6, zorder=0)
+                print(f"已加载底图: {img_path}")
+            else:
+                print(f"未找到底图图片: {img_path}")
+        except Exception as e:
+            print(f"底图加载失败: {e}")
+
         # 设置等比例，确保地图不变形
         self.ax_map.set_aspect('equal', adjustable='box')
 
@@ -271,7 +284,7 @@ class CanteenVisualizer:
         self._add_legend()
 
         # 调整布局
-        plt.tight_layout(rect=[0, 0, 1, 0.95])
+        self.fig.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
 
     def _add_legend(self) -> None:
         """
@@ -368,7 +381,7 @@ class CanteenVisualizer:
         print("可视化窗口关闭，清理资源...")
         if self.animation:
             self.animation.event_source.stop()
-        plt.close('all')
+        self.animation = None
 
     def _update_info_text(self, message: str) -> None:
         """
@@ -784,7 +797,7 @@ class CanteenVisualizer:
 
 
 # 便捷函数：创建可视化器
-def create_visualizer(map_boundaries: Tuple[float, float, float, float] = (0, 0, 1000, 800),
+def create_visualizer(map_boundaries: Tuple[float, float, float, float] = (-250, -400, 450, 200),
                      title: str = "BJTU食堂就餐流量仿真") -> CanteenVisualizer:
     """
     创建可视化器实例
@@ -807,19 +820,22 @@ if __name__ == "__main__":
     # 创建测试数据
     from models import Student, Canteen, StudentState
 
-    # 创建测试食堂
+    # 创建测试食堂（坐标来自 campus_bounds.json）
     canteens = [
-        Canteen(canteen_id=1, name="四食堂", position=(300, 400), window_count=5, capacity=100),
-        Canteen(canteen_id=2, name="明湖食堂", position=(600, 400), window_count=3, capacity=80),
+        Canteen(canteen_id=1, name="四食堂", position=(250.0, -310.0), window_count=10, capacity=100),
+        Canteen(canteen_id=2, name="一食堂", position=(160.0, 80.0), window_count=15, capacity=80),
+        Canteen(canteen_id=3, name="学活食堂", position=(-180.0, 80.0), window_count=20, capacity=120),
     ]
 
     # 创建测试学生
     students = []
+    canteen_positions = [(250.0, -310.0), (160.0, 80.0), (-180.0, 80.0)]
     for i in range(50):
+        dest = canteen_positions[i % 3]
         student = Student(
             student_id=i,
-            position=(np.random.uniform(0, 1000), np.random.uniform(0, 800)),
-            destination=(300, 400) if i % 2 == 0 else (600, 400),
+            position=(np.random.uniform(-200, 400), np.random.uniform(-300, 150)),
+            destination=dest,
             speed=np.random.uniform(1, 5)
         )
         # 随机分配状态
@@ -828,8 +844,9 @@ if __name__ == "__main__":
         students.append(student)
 
     # 设置食堂排队人数（测试用）
-    canteens[0].total_queue_length = 15
-    canteens[1].total_queue_length = 8
+    canteens[0].total_queue_length = 25
+    canteens[1].total_queue_length = 15
+    canteens[2].total_queue_length = 10
 
     # 创建可视化器
     visualizer = create_visualizer(title="BJTU食堂仿真测试")
