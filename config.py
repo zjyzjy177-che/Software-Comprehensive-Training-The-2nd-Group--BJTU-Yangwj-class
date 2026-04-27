@@ -90,18 +90,50 @@ class BJTUConfig:
         参数：
         config_file: 配置文件路径，如果提供则从文件加载，否则使用默认配置
 
-        配置优先级：文件配置 > 默认配置
+        坐标优先级：campus_bounds.json > DEFAULT_COORDINATES > 配置文件
+        数据流：campus_bounds.json（唯一权威坐标源）→ config.py → engine.py → strategies.py/visualizer.py
         """
-        # 建筑坐标
-        self.coordinates = self.DEFAULT_COORDINATES.copy()
+        # ============================================================
+        # 第1步：从 campus_bounds.json 加载权威坐标（唯一坐标数据源）
+        # ============================================================
+        bounds_file = os.path.join(os.path.dirname(__file__), 'campus_bounds.json')
+        self._loaded_bounds = None  # 保存从JSON加载的原始数据
+        self.coordinates = {}
 
-        # 仿真参数（与engine.py的SimulationEngine对齐）
+        if os.path.exists(bounds_file):
+            try:
+                with open(bounds_file, 'r', encoding='utf-8') as f:
+                    campus_data = json.load(f)
+                self._loaded_bounds = campus_data
+
+                # 从JSON中提取所有建筑坐标
+                # campus_bounds.json 格式为扁平字典: {"buildings": {"思源楼": [x, y], ...}}
+                raw_buildings = campus_data.get('buildings', {})
+                for name, info in raw_buildings.items():
+                    # info 可能是 [x, y] 列表，直接转换
+                    if isinstance(info, list) and len(info) == 2:
+                        self.coordinates[name] = tuple(info)
+
+                print(f"从 campus_bounds.json 加载了 {len(self.coordinates)} 个建筑坐标")
+            except Exception as e:
+                print(f"警告：加载 campus_bounds.json 失败: {e}，回退到 DEFAULT_COORDINATES")
+
+        # 第2步：如果加载失败，使用 DEFAULT_COORDINATES 作为后备
+        if not self.coordinates:
+            self.coordinates = self.DEFAULT_COORDINATES.copy()
+            print(f"使用 DEFAULT_COORDINATES 后备坐标（{len(self.coordinates)} 个建筑）")
+
+        # ============================================================
+        # 第3步：仿真参数（与engine.py的SimulationEngine对齐）
+        # ============================================================
         self.simulation_params = {
             'max_ticks': 1000,           # 最大仿真周期数
             'spawn_rate': 0.1,           # 学生生成速率
             'student_count': 100,        # 初始学生数量
             'canteen_count': 4,          # 食堂数量
-            'map_boundaries': (-250.0, -400.0, 450.0, 200.0),  # 左下角(x, y), 右上角(x, y)
+            'map_boundaries': tuple(campus_data.get('map_boundaries', [-250.0, -400.0, 450.0, 200.0]))
+                if self._loaded_bounds
+                else (-250.0, -400.0, 450.0, 200.0),
 
             # 时间参数
             'gap_time': 15,              # 下课时间差（分钟）[关键参数]
@@ -157,15 +189,10 @@ class BJTUConfig:
                 ],
             },
 
-            # 食堂参数
-            'canteen_positions': [
-                (200.0, -150.0),   # 四食堂
-                (150.0, 150.0),    # 一食堂
-                (200.0, -125.0),   # 留园
-                (-150.0, 50.0),    # 学活食堂
-            ],
-            'window_counts': [10, 15, 3, 20 ],  # 各食堂窗口数量
-            'service_rates': [1.0, 1.0,1.0, 1.0],  # 各食堂服务速率
+            # 食堂参数 — 从 coordinates 字典中动态提取，确保与 campus_bounds.json 一致
+            'canteen_positions': self._derive_canteen_positions(),
+            'window_counts': [10, 15, 3, 20],
+            'service_rates': [1.0, 1.0, 1.0, 1.0],
 
             # 学生参数
             'student_speed_range': (10.0, 50.0),  # 学生速度范围
@@ -185,12 +212,38 @@ class BJTUConfig:
             'prefer_near_canteen': True, # 是否优先选择近的食堂
         }
 
-        # 从文件加载配置（如果提供了配置文件）
+        # 第4步：外部配置文件覆盖（如果提供了 JSON 配置文件）
         if config_file and os.path.exists(config_file):
             self.load_from_file(config_file)
 
-        # 验证配置
+        # 第5步：验证所有配置
         self._validate_config()
+
+    def _derive_canteen_positions(self) -> List[Tuple[float, float]]:
+        """
+        从坐标字典中动态提取食堂位置（内部方法）
+
+        遍历 self.coordinates，按名称关键词匹配食堂（'食堂' 或 '留园'），
+        返回按 canteen_count 截断的位置列表。
+
+        食堂数量不足 canteen_count 时用随机坐标补齐（不应发生）。
+
+        返回：
+        List[Tuple[float, float]]: 食堂位置列表，与 canteen_count 长度一致
+        """
+        # 候选食堂名称关键词
+        canteen_keywords = ['食堂', '留园']
+        positions = []
+        for name, coord in self.coordinates.items():
+            if any(kw in name for kw in canteen_keywords):
+                positions.append(coord)
+        target = self.simulation_params.get('canteen_count', 4) if hasattr(self, 'simulation_params') else 4
+        if len(positions) < target:
+            import random
+            print(f"警告：坐标字典中仅找到 {len(positions)} 个食堂，补全随机坐标")
+            while len(positions) < target:
+                positions.append((random.uniform(-200, 400), random.uniform(-350, 150)))
+        return positions[:target]
 
     def _validate_config(self) -> None:
         """
@@ -281,18 +334,26 @@ class BJTUConfig:
         """
         config = self.simulation_params.copy()
 
-        # 设置食堂位置（如果未指定，使用默认食堂位置）
-        if config['canteen_positions'] is None:
-            # 从坐标字典中提取食堂位置
-            canteen_keys = [key for key in self.coordinates.keys() if '食堂' in key]
-            canteen_positions = []
-            for i in range(min(config['canteen_count'], len(canteen_keys))):
-                pos = self.coordinates[canteen_keys[i]]
-                canteen_positions.append(pos)
-            config['canteen_positions'] = canteen_positions
-
         # 添加算法参数（供strategies.py使用）
         config['algorithm_params'] = self.algorithm_params
+
+        # 添加食堂名称（从 coordinates 中动态提取）
+        canteen_keywords = ['食堂', '留园']
+        canteen_names = []
+        for name in self.coordinates:
+            if any(kw in name for kw in canteen_keywords):
+                canteen_names.append(name)
+        config['canteen_names'] = canteen_names[:config['canteen_count']]
+
+        # 添加学生生成位置（教学楼和宿舍楼坐标）
+        spawn_building_keywords = ['教学楼', '教', '宿舍', '嘉园', '公寓', '楼']
+        spawn_positions = []
+        for name, coord in self.coordinates.items():
+            if any(kw in name for kw in spawn_building_keywords) and name not in canteen_names:
+                spawn_positions.append(coord)
+        if not spawn_positions:
+            spawn_positions = list(self.coordinates.values())
+        config['spawn_positions'] = spawn_positions
 
         return config
 

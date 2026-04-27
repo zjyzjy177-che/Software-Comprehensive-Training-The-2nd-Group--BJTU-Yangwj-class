@@ -28,7 +28,8 @@ import time
 from typing import Dict, Any, Optional
 
 # 导入核心模块
-from engine import SimulationEngine, create_default_config
+from engine import SimulationEngine
+from config import BJTUConfig
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -135,38 +136,41 @@ def create_config_from_args(args: argparse.Namespace) -> Dict[str, Any]:
     """
     从命令行参数创建配置字典
 
+    使用 BJTUConfig（基于 campus_bounds.json 坐标）作为基础，
+    然后用命令行参数覆盖。配置文件优先级最高（如果提供了--config参数）。
+
     参数：
     args: 解析后的命令行参数
 
     返回：
-    Dict[str, Any]: 配置字典
-
-    优先使用命令行参数，如果参数未提供则使用默认值。
-    配置文件优先级最高（如果提供了--config参数）。
+    Dict[str, Any]: 配置字典（由 BJTUConfig.get_simulation_config() 生成）
     """
-    # 从默认配置开始
-    config = create_default_config()
+    # 使用 BJTUConfig 加载 campus_bounds.json 坐标
+    config_obj = BJTUConfig(config_file=args.config)
 
-    # 用命令行参数覆盖
-    config['max_ticks'] = args.ticks
-    config['student_count'] = args.students
-    config['canteen_count'] = args.canteens
-    config['spawn_rate'] = args.spawn_rate
+    # 用命令行参数覆盖默认值
+    config_obj.simulation_params['max_ticks'] = args.ticks
+    config_obj.simulation_params['student_count'] = args.students
+    config_obj.simulation_params['canteen_count'] = args.canteens
+    config_obj.simulation_params['spawn_rate'] = args.spawn_rate
 
-    # 随机种子（如果提供了）
     if args.seed is not None:
-        config['random_seed'] = args.seed
+        config_obj.simulation_params['random_seed'] = args.seed
 
-    # 可视化开关（预留）
-    config['enable_visualization'] = args.visualize
+    config_obj.simulation_params['enable_visualization'] = args.visualize
 
-    # 测试模式：调整参数以便快速测试
+    # 测试模式：快速验证
     if args.test:
-        config['max_ticks'] = 50
-        config['student_count'] = 20
-        config['canteen_count'] = 2
-        config['spawn_rate'] = 0.05
+        config_obj.simulation_params['max_ticks'] = 50
+        config_obj.simulation_params['student_count'] = 20
+        config_obj.simulation_params['canteen_count'] = 2
+        config_obj.simulation_params['spawn_rate'] = 0.05
         print("测试模式：使用简化参数")
+
+    # 生成引擎可用的配置字典
+    config = config_obj.get_simulation_config()
+    # 保留 config_obj 引用，供可视化使用
+    config['_config_obj'] = config_obj
 
     return config
 
@@ -277,33 +281,28 @@ def generate_summary_text(engine: SimulationEngine) -> str:
     return "\n".join(summary_lines)
 
 
-def initialize_visualization(engine: SimulationEngine) -> None:
+def initialize_visualization(config: Dict[str, Any]):
     """
-    初始化可视化模块（预留接口）
+    初始化可视化模块
 
     参数：
-    engine: 仿真引擎对象
+    config: 配置字典（需包含 map_boundaries）
 
-    注意：这是预留接口，实际可视化功能在visualizer.py中实现。
-    当用户指定--visualize参数时，调用此函数。
+    返回：
+    CanteenVisualizer: 可视化器实例，若失败则返回 None
     """
     try:
-        # 尝试导入可视化模块
-        # 注意：visualizer.py尚未实现，这里只是预留接口
-        # from visualizer import Visualizer
-
-        print("可视化功能预留接口（visualizer.py尚未实现）")
-        print("如需可视化功能，请实现visualizer.py模块")
-
-        # 示例代码（预留）：
-        # visualizer = Visualizer(engine)
-        # visualizer.initialize()
-        # return visualizer
-
+        from visualizer import CanteenVisualizer
+        map_boundaries = config.get('map_boundaries', (-250, -400, 450, 200))
+        visualizer = CanteenVisualizer(map_boundaries=tuple(map_boundaries))
+        print("可视化模块初始化完成")
+        return visualizer
     except ImportError:
-        print("警告：可视化模块未找到，请确保visualizer.py存在")
+        print("警告：可视化模块未找到，请确保 visualizer.py 存在")
+        return None
     except Exception as e:
         print(f"警告：初始化可视化时发生错误：{e}")
+        return None
 
 
 def run_simulation(config: Dict[str, Any], quiet_mode: bool = False) -> SimulationEngine:
@@ -311,23 +310,20 @@ def run_simulation(config: Dict[str, Any], quiet_mode: bool = False) -> Simulati
     运行仿真（核心函数）
 
     参数：
-    config: 配置字典
+    config: 配置字典（由 BJTUConfig.get_simulation_config() 生成）
     quiet_mode: 安静模式，减少控制台输出
 
     返回：
     SimulationEngine: 运行完成的仿真引擎对象
 
-    这是仿真的主要执行函数，负责：
-    1. 创建仿真引擎
-    2. 运行仿真
-    3. 处理可视化（如果启用）
-    4. 返回结果
+    两种运行模式：
+    - 无可视化：调用 engine.run() 快速批量运行
+    - 可视化模式：逐 tick 运行，通过 FuncAnimation 驱动更新
     """
     print("\n" + "=" * 60)
     print("北京交通大学食堂就餐流量仿真系统")
     print("=" * 60)
 
-    # 创建仿真引擎
     print("初始化仿真引擎...")
     start_time = time.time()
 
@@ -336,20 +332,44 @@ def run_simulation(config: Dict[str, Any], quiet_mode: bool = False) -> Simulati
         init_time = time.time() - start_time
         print(f"仿真引擎初始化完成，耗时：{init_time:.2f}秒")
 
-        # 初始化可视化（如果启用）
-        if config.get('enable_visualization', False):
-            print("初始化可视化模块...")
-            initialize_visualization(engine)
+        enable_vis = config.get('enable_visualization', False)
 
-        # 运行仿真
         print("\n开始仿真运行...")
         print(f"最大周期数：{config['max_ticks']}")
         print(f"初始学生数：{config['student_count']}")
         print(f"食堂数量：{config['canteen_count']}")
         print("-" * 40)
 
-        # 根据安静模式调整输出级别
-        engine.run(verbose=not quiet_mode)
+        if enable_vis:
+            # --- 可视化模式：逐 tick 运行 ---
+            visualizer = initialize_visualization(config)
+            if visualizer is None:
+                print("可视化初始化失败，回退到无可视化模式")
+                engine.run(verbose=not quiet_mode)
+            else:
+                engine.is_running = True
+                engine.start_time = time.time()
+
+                def update_frame():
+                    """每帧动画回调：推进一个 tick 并返回当前状态"""
+                    if engine.current_tick < engine.max_ticks:
+                        engine.tick()
+                    elif engine.is_running:
+                        engine.end_time = time.time()
+                        engine.is_running = False
+                    return engine.current_tick, engine.active_students, engine.canteens
+
+                def on_animation_done():
+                    """动画结束后打印摘要"""
+                    if not engine.end_time:
+                        engine.end_time = time.time()
+                    engine.print_summary()
+
+                visualizer.start_animation(update_frame)
+                visualizer.show()
+        else:
+            # --- 无可视化模式：批量运行 ---
+            engine.run(verbose=not quiet_mode)
 
         print("\n仿真运行完成！")
         return engine
@@ -448,53 +468,17 @@ def main() -> None:
 # 预留配置模块接口
 def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     """
-    加载配置（预留config.py接口）
+    加载配置（使用 BJTUConfig，基于 campus_bounds.json）
 
     参数：
     config_path: 配置文件路径，如果为None则使用默认配置
 
     返回：
     Dict[str, Any]: 配置字典
-
-    注意：这是预留接口，实际配置功能在config.py中实现。
-    当前版本使用JSON文件，后续可扩展更复杂的配置系统。
     """
-    # 如果没有提供路径，返回默认配置
-    if config_path is None:
-        return create_default_config()
-
-    # 尝试加载配置文件
-    config = load_config_file(config_path)
-    if config is None:
-        print(f"警告：无法加载配置文件 {config_path}，使用默认配置")
-        return create_default_config()
-
-    return config
-
-
-# 预留可视化模块接口
-def update_visualization(engine: SimulationEngine) -> None:
-    """
-    更新可视化（预留visualizer.py接口）
-
-    参数：
-    engine: 仿真引擎对象
-
-    注意：这是预留接口，实际可视化功能在visualizer.py中实现。
-    在仿真运行过程中，每个Tick后可以调用此函数更新可视化。
-    """
-    # 预留接口，当前版本不实现
-    pass
+    config_obj = BJTUConfig(config_file=config_path)
+    return config_obj.get_simulation_config()
 
 
 if __name__ == "__main__":
-    """
-    当模块直接运行时，执行main()函数。
-
-    这允许两种使用方式：
-    1. 直接运行：python main.py
-    2. 作为模块导入：import main; main.run_simulation(config)
-
-    注意：作为模块导入时，不会执行命令行参数解析。
-    """
     main()

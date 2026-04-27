@@ -62,9 +62,8 @@ class SimulationEngine:
     DEFAULT_STUDENT_COUNT = 100  # 默认初始学生数量
     DEFAULT_CANTEEN_COUNT = 3  # 默认食堂数量
 
-    # 地图边界常量（BJTU大致范围，单位：米）
-    # 注意：这是示例坐标，实际应使用BJTU真实地图坐标
-    DEFAULT_MAP_BOUNDARIES = (0.0, 0.0, 1000.0, 800.0)  # (x_min, y_min, x_max, y_max)
+    # 地图边界常量（与 campus_bounds.json 对齐）
+    DEFAULT_MAP_BOUNDARIES = (-250.0, -400.0, 450.0, 200.0)  # (x_min, y_min, x_max, y_max)
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
@@ -223,33 +222,38 @@ class SimulationEngine:
         创建食堂（内部方法）
 
         根据配置创建指定数量的食堂。
-        如果配置中指定了食堂位置，使用指定位置；否则随机生成。
+        优先使用配置中的 canteen_positions、canteen_names、window_counts。
         """
         canteen_count = self.config['canteen_count']
         canteen_positions = self.config.get('canteen_positions')
-
-        # 食堂名称列表（BJTU实际食堂名称）
-        canteen_names = ["四食堂", "明湖食堂", "学活食堂", "东区食堂", "西区食堂"]
+        canteen_names_cfg = self.config.get('canteen_names', [])
+        window_counts = self.config.get('window_counts', [])
 
         for i in range(canteen_count):
             # 确定食堂位置
             if canteen_positions and i < len(canteen_positions):
-                position = canteen_positions[i]
+                position = tuple(canteen_positions[i])
             else:
-                # 随机生成位置（在地图边界内）
                 position = self._generate_random_position()
 
-            # 确定食堂名称
-            name = canteen_names[i] if i < len(canteen_names) else f"食堂{i+1}"
+            # 确定食堂名称（优先使用配置中的名称）
+            if i < len(canteen_names_cfg):
+                name = canteen_names_cfg[i]
+            else:
+                name = f"食堂{i+1}"
 
-            # 创建食堂对象
-            # 参数：食堂ID、名称、位置、窗口数量、容量
+            # 确定窗口数量（优先使用配置）
+            if i < len(window_counts):
+                wc = window_counts[i]
+            else:
+                wc = random.randint(3, 8)
+
             canteen = Canteen(
                 canteen_id=i,
                 name=name,
                 position=position,
-                window_count=random.randint(3, 8),  # 随机窗口数量（3-8个）
-                capacity=random.randint(100, 300)   # 随机容量（100-300人）
+                window_count=wc,
+                capacity=random.randint(100, 300)
             )
 
             self.canteens.append(canteen)
@@ -266,12 +270,11 @@ class SimulationEngine:
         start_positions = self.config.get('student_start_positions')
 
         for i in range(student_count):
-            # 确定起始位置
+            # 确定起始位置（优先使用指定位置，否则使用建筑坐标）
             if start_positions and i < len(start_positions):
                 position = start_positions[i]
             else:
-                # 随机生成起始位置（在地图边界内）
-                position = self._generate_random_position()
+                position = self._get_spawn_position()
 
             # 选择目标食堂（使用智能选择器）
             target_canteen = None
@@ -316,6 +319,18 @@ class SimulationEngine:
         x = random.uniform(x_min, x_max)
         y = random.uniform(y_min, y_max)
         return (x, y)
+
+    def _get_spawn_position(self) -> Tuple[float, float]:
+        """
+        获取学生生成位置（优先使用真实建筑坐标）
+
+        从配置的 spawn_positions（教学楼/宿舍楼坐标）中随机选取，
+        无配置时回退到地图边界内随机位置。
+        """
+        spawn_positions = self.config.get('spawn_positions')
+        if spawn_positions:
+            return tuple(random.choice(spawn_positions))
+        return self._generate_random_position()
 
     def tick(self) -> bool:
         """
@@ -377,10 +392,10 @@ class SimulationEngine:
         # 生成概率判断
         if random.random() < spawn_rate:
             # 生成一个新学生
-            student_id = len(self.students)  # 使用当前学生数量作为新ID
+            student_id = len(self.students)
 
-            # 随机起始位置
-            start_position = self._generate_random_position()
+            # 使用真实建筑坐标作为起始位置
+            start_position = self._get_spawn_position()
 
             # 选择目标食堂（使用智能选择器）
             target_canteen = None
@@ -430,16 +445,13 @@ class SimulationEngine:
             # 更新学生状态
             is_active = student.update_state(self.map_boundaries)
 
-            # 检查学生是否需要加入食堂队列
-            if student.state == StudentState.QUEUING and student.target_canteen_id is not None:
-                # 找到目标食堂
+            # 检查学生是否需要加入食堂队列（仅尚未分配到窗口的学生）
+            if (student.state == StudentState.QUEUING
+                    and student.target_canteen_id is not None
+                    and student.target_window_id is None):
                 target_canteen = self._find_canteen_by_id(student.target_canteen_id)
                 if target_canteen:
-                    # 尝试加入食堂队列
-                    success = target_canteen.add_student_to_queue(student)
-                    if not success:
-                        # 如果加入队列失败（如食堂已满），学生继续等待
-                        pass
+                    target_canteen.add_student_to_queue(student)
 
             # 如果学生已离开，标记为待移除
             if not is_active:
