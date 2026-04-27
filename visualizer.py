@@ -25,6 +25,22 @@ import os
 import platform
 import time
 import matplotlib
+
+# ============================================================
+# 关键：在 import pyplot 之前设置后端，否则动画无法工作
+# ============================================================
+_SYSTEM = platform.system()
+if _SYSTEM == 'Darwin':
+    matplotlib.use('MacOSX')
+elif _SYSTEM == 'Windows':
+    matplotlib.use('TkAgg')
+else:
+    # Linux：尝试 TkAgg，失败则回退 Agg
+    try:
+        matplotlib.use('TkAgg')
+    except ImportError:
+        matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 from matplotlib.animation import FuncAnimation
@@ -201,13 +217,7 @@ class CanteenVisualizer:
             print("警告：未找到中文字体，中文可能显示异常")
             print("请安装中文字体或指定字体路径")
 
-        # 根据平台选择后端（优化性能）
-        if system == 'Darwin':
-            matplotlib.use('MacOSX')  # macOS优化后端
-        elif system == 'Windows':
-            matplotlib.use('TkAgg')   # Windows常用后端
-        else:
-            matplotlib.use('Agg')     # Linux无头后端（如果需要GUI则用TkAgg）
+        # 后端已在模块导入时设置（import pyplot 之前），此处无需再设
 
     def _create_figure(self, title: str) -> None:
         """
