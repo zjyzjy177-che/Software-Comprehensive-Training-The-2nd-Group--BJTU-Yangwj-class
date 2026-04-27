@@ -480,5 +480,21 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     return config_obj.get_simulation_config()
 
 
+def update_visualization(visualizer, tick: int, students, canteens) -> None:
+    """
+    更新可视化显示
+
+    参数：
+    visualizer: CanteenVisualizer 实例
+    tick: 当前仿真周期
+    students: 活跃学生列表
+    canteens: 食堂列表
+    """
+    try:
+        visualizer.draw_frame(tick, students, canteens)
+    except Exception as e:
+        print(f"可视化更新警告：{e}")
+
+
 if __name__ == "__main__":
     main()
