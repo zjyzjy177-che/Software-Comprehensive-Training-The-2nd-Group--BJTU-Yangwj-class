@@ -194,9 +194,9 @@ class BJTUConfig:
             'window_counts': [10, 15, 3, 20],
             'service_rates': [1.0, 1.0, 1.0, 1.0],
 
-            # 学生参数
-            'student_speed_range': (10.0, 50.0),  # 学生速度范围
-            'eating_time_range': (5, 15),       # 用餐时间范围（周期数）
+            # 学生参数（基于地图700m×600m，1 tick ≈ 若干秒）
+            'student_speed_range': (3.0, 15.0),  # 学生速度范围（m/tick），300m需20-100tick到达
+            'eating_time_range': (20, 60),       # 用餐时间范围（tick），足够长才会形成排队
 
             # 其他参数
             'random_seed': None,         # 随机种子

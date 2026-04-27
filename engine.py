@@ -288,13 +288,15 @@ class SimulationEngine:
                 print(f"警告：学生{i}使用选择器未选择到食堂，回退到随机选择")
 
             if target_canteen:
-                # 创建学生对象
+                # 创建学生对象（速度、用餐时间从 config 读取）
+                speed = self._random_student_speed()
+                eating_time = self._random_eating_time()
                 student = Student(
                     student_id=i,
                     position=position,
                     destination=target_canteen.position,
-                    speed=random.uniform(1.0, 5.0),  # 随机速度（1.0-5.0）
-                    eating_time=random.randint(5, 15)  # 随机用餐时间（5-15周期）
+                    speed=speed,
+                    eating_time=eating_time
                 )
 
                 # 设置目标食堂ID
@@ -331,6 +333,16 @@ class SimulationEngine:
         if spawn_positions:
             return tuple(random.choice(spawn_positions))
         return self._generate_random_position()
+
+    def _random_student_speed(self) -> float:
+        """从 config 的 student_speed_range 中随机取速度"""
+        lo, hi = self.config.get('student_speed_range', (3.0, 15.0))
+        return random.uniform(lo, hi)
+
+    def _random_eating_time(self) -> int:
+        """从 config 的 eating_time_range 中随机取用餐时间"""
+        lo, hi = self.config.get('eating_time_range', (20, 60))
+        return random.randint(lo, hi)
 
     def tick(self) -> bool:
         """
@@ -410,13 +422,15 @@ class SimulationEngine:
                     print(f"Tick {self.current_tick}: 选择器未选择到食堂，回退到随机选择")
 
             if target_canteen:
-                # 创建学生对象
+                # 创建学生对象（速度、用餐时间从 config 读取）
+                speed = self._random_student_speed()
+                eating_time = self._random_eating_time()
                 student = Student(
                     student_id=student_id,
                     position=start_position,
                     destination=target_canteen.position,
-                    speed=random.uniform(1.0, 5.0),
-                    eating_time=random.randint(5, 15)
+                    speed=speed,
+                    eating_time=eating_time
                 )
 
                 # 设置目标食堂ID

@@ -161,10 +161,10 @@ def create_config_from_args(args: argparse.Namespace) -> Dict[str, Any]:
 
     # 测试模式：快速验证
     if args.test:
-        config_obj.simulation_params['max_ticks'] = 50
-        config_obj.simulation_params['student_count'] = 20
+        config_obj.simulation_params['max_ticks'] = 150
+        config_obj.simulation_params['student_count'] = 30
         config_obj.simulation_params['canteen_count'] = 2
-        config_obj.simulation_params['spawn_rate'] = 0.05
+        config_obj.simulation_params['spawn_rate'] = 0.08
         print("测试模式：使用简化参数")
 
     # 生成引擎可用的配置字典
