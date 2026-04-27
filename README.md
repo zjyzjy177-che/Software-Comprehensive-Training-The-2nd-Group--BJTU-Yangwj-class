@@ -70,10 +70,10 @@ bjtu_canteen_simulation/
 ├── engine.py              # 仿真引擎：SimulationEngine（Tick驱动）
 ├── main.py                # 主程序入口：命令行接口
 ├── test_simulation.py     # 测试套件：单元测试、集成测试
-├── config.py              # ✅ 配置模块：BJTU地图坐标、仿真参数（v1.3）
-├── strategies.py          # 🔄 策略模块：多食堂选择算法（模板完成）
+├── config.py              # ✅ 配置模块：BJTU地图坐标、仿真参数（v1.4）
+├── strategies.py          # ✅ 策略模块：多食堂选择算法完整实现（v2.0）
 ├── visualizer.py          # ✅ 可视化模块：Matplotlib动态渲染、校园底图加载、真实坐标对齐（v1.1）
-├── campus_bounds.json     # ✅ 校园边界和建筑坐标文件（v0.1）
+├── campus_bounds.json     # ✅ 校园边界和建筑坐标文件（v1.1）
 ├── .gitignore             # Git忽略配置
 ├── README.md              # 项目文档
 ├── simulation_results.json # 仿真结果输出示例
@@ -93,18 +93,22 @@ bjtu_canteen_simulation/
   - `CanteenSelectionStrategy`基类
   - `DistanceBasedStrategy`示例实现
 
-### 2. engine.py - 仿真引擎层
+### 2. engine.py - 仿真引擎层（v1.2）
 - **SimulationEngine类**：离散时间驱动核心
   - `tick()`方法：每个周期更新所有实体状态
   - 学生生成、状态更新、食堂服务、数据收集
-  - 地图边界检查，防止坐标溢出
+  - 地图边界对齐campus_bounds.json：(-250,-400)-(450,200)
+  - 学生从真实建筑坐标生成（教学楼/宿舍楼）
+  - 食堂名称和窗口数从配置获取
 - **配置系统**：支持命令行参数和JSON配置文件
 
-### 3. main.py - 集成入口层
+### 3. main.py - 集成入口层（v2.0）
 - 命令行参数解析
 - 仿真流程控制
 - 结果输出（JSON格式 + 文本摘要）
-- 预留`visualizer.py`和`config.py`调用接口
+- **集成BJTUConfig**：自动从campus_bounds.json加载32个建筑坐标
+- **可视化集成**：`initialize_visualization`和`update_visualization`已完成真实实现
+- **双模式运行**：无可视化时批量运行，可视化模式逐tick驱动动画更新
 
 ### 4. test_simulation.py - 测试套件
 - 单元测试：验证Student和Canteen核心功能
@@ -272,6 +276,16 @@ python main.py --config example_config.json
   - 跨平台字体适配：支持Windows/macOS/Linux中文字体
   - 缺陷修复：修复窗口关闭TclError和tight_layout兼容性警告
   - 性能优化：增量更新、更新频率节流、历史数据长度限制
+- [x] **main.py v2.0：全模块集成完成**，包括：
+  - 集成BJTUConfig，启动时自动从campus_bounds.json加载坐标
+  - `initialize_visualization`和`update_visualization`从空壳变为真实实现
+  - `run_simulation`支持可视化模式（逐tick驱动动画）和非可视化模式（批量运行）
+- [x] **engine.py v1.2：坐标系统全面对齐**，包括：
+  - DEFAULT_MAP_BOUNDARIES对齐campus_bounds.json
+  - 食堂名称/窗口数从配置获取，不再硬编码
+  - 学生从真实建筑坐标生成（教学楼/宿舍楼）
+  - 修复排队学生被重复加入多个窗口的bug
+- [x] **config.py v1.4**：`get_simulation_config`新增`canteen_names`和`spawn_positions`动态推导
 
 ## 👥 团队协作流程
 
@@ -291,5 +305,5 @@ python main.py --config example_config.json
 
 ---
 
-**项目状态**：核心仿真引擎已完成，配置模块（v1.3）和校园边界文件（v0.1）已就绪，**多食堂选择算法已完整实现并集成**，**可视化模块已完善（v1.1）**，进入性能优化和GUI开发阶段
+**项目状态**：核心仿真引擎已完成，配置模块（v1.4）和校园边界文件（v1.1）已就绪，多食堂选择算法已完整实现并集成，可视化模块已完善（v1.1），**主程序v2.0已完成全模块集成**，进入性能优化和GUI开发阶段
 
