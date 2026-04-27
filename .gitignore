@@ -214,3 +214,4 @@ simulation_results*.json
 simulation_results*.txt
 *.output
 __pycache__/
+test_frame.png
