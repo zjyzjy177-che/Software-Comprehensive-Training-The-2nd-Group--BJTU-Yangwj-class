@@ -29,6 +29,18 @@
 | **同学 B**        | **算法/环境建模** | 负责 BJTU 地图坐标映射、食堂选择逻辑及错峰算法。  |
 | **同学 C**        | **UI/可视化**     | 负责 GUI 界面开发、跨平台字体适配及动态图表渲染。 |
 
+### 同学 A（组长）— 核心引擎与系统集成
+
+负责 [`models.py`](models.py)、[`engine.py`](engine.py)、[`main.py`](main.py) 及 [`test_simulation.py`](test_simulation.py)。设计 Student 有限状态机（WALKING → QUEUING → EATING → LEAVING）及 Window/Canteen 的 FIFO 服务队列模型。实现 SimulationEngine 离散时间驱动核心，管理 tick 主循环中的学生生成、状态更新、食堂服务与数据收集。将 BJTUConfig 集成到 main.py，打通 campus_bounds.json → config.py → engine.py → visualizer.py 全链路，支持 CLI 参数、可视化模式双轨运行。编写 `test_member_a.py`（25 项）验证引擎与模型正确性，并负责整体项目进度与代码评审。
+
+### 同学 B — 算法与环境建模
+
+负责 [`campus_bounds.json`](campus_bounds.json)、[`config.py`](config.py)、[`strategies.py`](strategies.py) 及 [`example_config.json`](example_config.json)。采集 BJTU 校园 32 个建筑真实坐标，建立笛卡尔坐标系并编写 campus_bounds.json 作为唯一权威数据源。实现 BJTUConfig 配置管理类，动态推导食堂名称、学生生成位置，支持 JSON 文件导入导出。设计 CanteenSelector 多食堂选择算法，加权综合距离（α）与排队人数（β），引入窗口效率因子与容量惩罚，支持距离优先/排队优先/平衡三种策略及动态权重调整。编写 `test_member_b.py`（34 项）验证坐标数据完整性与算法正确性。
+
+### 同学 C — UI 与可视化
+
+负责 [`visualizer.py`](visualizer.py)。实现 CanteenVisualizer 类，基于 Matplotlib 完成 2D 校园地图实时渲染，学生按状态分色显示（蓝行走/红排队/绿用餐/紫离开），食堂显示排队柱状图。实现 FuncAnimation 动画驱动、实时统计曲线（排队人数变化）与状态分布饼图。支持空格暂停/继续、上下箭头调速、R 键重置视图等交互控制。完成跨平台中文字体适配（Windows/macOS/Linux）及性能优化（增量更新、节流、历史数据裁剪）。修复 matplotlib 后端设置时机导致动画失效的 bug。编写 `test_member_c.py`（15 项）验证可视化初始化、帧渲染及 main.py 接口集成。
+
 ## 🚀 快速开始
 
 ### 环境要求
