@@ -281,6 +281,83 @@ def generate_summary_text(engine: SimulationEngine) -> str:
     return "\n".join(summary_lines)
 
 
+def run_simulation_from_gui(config_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    供 GUI 调用的仿真入口函数
+
+    参数：
+    config_dict: GUI 传来的配置字典，包含：
+        - max_ticks, student_count, canteen_count, spawn_rate
+        - 可选：algorithm_params (策略类型和权重)
+        - 可选：enable_visualization
+
+    返回：
+    dict: 包含 statistics 和 summary 的字典，供 GUI 展示
+        - success: bool
+        - statistics: 仿真统计数据
+        - summary: 文本摘要
+        - error: 错误信息（仅失败时）
+    """
+    try:
+        config = create_config_from_gui(config_dict)
+        engine = run_simulation(config, quiet_mode=True)
+        return {
+            'success': True,
+            'statistics': engine.get_statistics(),
+            'summary': generate_summary_text(engine),
+            'error': None
+        }
+    except Exception as e:
+        import traceback
+        return {
+            'success': False,
+            'statistics': None,
+            'summary': None,
+            'error': f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+        }
+
+
+def create_config_from_gui(gui_config: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    将 GUI 传来的参数转换为 engine 可用的配置字典
+
+    参数：
+    gui_config: GUI 传来的原始参数字典
+
+    返回：
+    Dict[str, Any]: engine 可用的配置字典
+    """
+    config_obj = BJTUConfig()
+
+    # 参数校验
+    max_ticks = gui_config.get('max_ticks', 150)
+    canteen_count = gui_config.get('canteen_count', 2)
+    spawn_rate = gui_config.get('spawn_rate', 0.08)
+
+    if max_ticks <= 0:
+        raise ValueError(f"max_ticks 必须大于 0，实际值: {max_ticks}")
+    if canteen_count <= 0:
+        raise ValueError(f"canteen_count 必须大于 0，实际值: {canteen_count}")
+    if not (0 <= spawn_rate <= 1):
+        raise ValueError(f"spawn_rate 必须在 [0, 1] 范围内，实际值: {spawn_rate}")
+
+    config_obj.simulation_params['max_ticks'] = max_ticks
+    config_obj.simulation_params['student_count'] = gui_config.get('student_count', 30)
+    config_obj.simulation_params['canteen_count'] = canteen_count
+    config_obj.simulation_params['spawn_rate'] = spawn_rate
+    config_obj.simulation_params['enable_visualization'] = gui_config.get('enable_visualization', False)
+
+    if 'random_seed' in gui_config:
+        config_obj.simulation_params['random_seed'] = gui_config['random_seed']
+
+    if 'algorithm_params' in gui_config:
+        config_obj.algorithm_params.update(gui_config['algorithm_params'])
+
+    config = config_obj.get_simulation_config()
+    config['_config_obj'] = config_obj
+    return config
+
+
 def initialize_visualization(config: Dict[str, Any]):
     """
     初始化可视化模块
