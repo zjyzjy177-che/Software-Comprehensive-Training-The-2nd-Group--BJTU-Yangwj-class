@@ -355,6 +355,7 @@ def create_config_from_gui(gui_config: Dict[str, Any]) -> Dict[str, Any]:
 
     config = config_obj.get_simulation_config()
     config['_config_obj'] = config_obj
+    config['lang'] = gui_config.get('lang', 'zh_CN')
     return config
 
 
@@ -371,7 +372,8 @@ def initialize_visualization(config: Dict[str, Any]):
     try:
         from visualizer import CanteenVisualizer
         map_boundaries = config.get('map_boundaries', (-250, -400, 450, 200))
-        visualizer = CanteenVisualizer(map_boundaries=tuple(map_boundaries))
+        lang = config.get('lang', 'zh_CN')
+        visualizer = CanteenVisualizer(map_boundaries=tuple(map_boundaries), lang=lang)
         print("可视化模块初始化完成")
         return visualizer
     except ImportError:

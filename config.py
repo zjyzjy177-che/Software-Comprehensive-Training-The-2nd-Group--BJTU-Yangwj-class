@@ -284,7 +284,7 @@ class BJTUConfig:
             if len(canteen_positions) != self.simulation_params['canteen_count']:
                 raise ValueError("食堂位置数量与canteen_count不匹配")
             for pos in canteen_positions:
-                if not isinstance(pos, tuple) or len(pos) != 2:
+                if not isinstance(pos, (tuple, list)) or len(pos) != 2:
                     raise ValueError(f"食堂位置格式错误：{pos}")
 
     def get_coordinate(self, building_name: str) -> Tuple[float, float]:

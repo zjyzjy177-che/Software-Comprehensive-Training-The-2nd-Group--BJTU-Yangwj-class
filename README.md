@@ -39,7 +39,7 @@
 
 ### 同学 C — UI 与可视化
 
-负责 [`visualizer.py`](visualizer.py)。实现 CanteenVisualizer 类，基于 Matplotlib 完成 2D 校园地图实时渲染，学生按状态分色显示（蓝行走/红排队/绿用餐/紫离开），食堂显示排队柱状图。实现 FuncAnimation 动画驱动、实时统计曲线（排队人数变化）与状态分布饼图。支持空格暂停/继续、上下箭头调速、R 键重置视图等交互控制。完成跨平台中文字体适配（Windows/macOS/Linux）及性能优化（增量更新、节流、历史数据裁剪）。修复 matplotlib 后端设置时机导致动画失效的 bug。编写 `test_member_c.py`（15 项）验证可视化初始化、帧渲染及 main.py 接口集成。
+负责 [`gui.py`](gui.py)、[`visualizer.py`](visualizer.py) 及 [`test_member_c_integration.py`](test_member_c_integration.py)。基于 Tkinter 实现 BJTUSimulationGUI 完整图形界面，包含：宝蓝（#2260d6）主题 UI 对齐 CAS 登录页风格、校徽 logo 标题栏、角色选择（学生/教师，默认均不选）、账号密码验证码登录、注册/忘记密码（联系管理员）/访客（跳转交大主页）功能、5 次尝试锁定机制、仿真参数配置面板（时长/学生数/食堂数/生成率）、策略选择下拉框（距离优先/排队优先/平衡）、α β 权重滑块调节、可视化开关及 JSON 配置文件加载器、后台线程调用 main.run_simulation_from_gui 启动仿真、结果显示区。登录卡片下方展示 4 张校园图片（picture1-4.png）横排排列、友情链接区（交大主页 + 后勤集团）带黄底红字闪烁动画。右上角简/繁/EN 三语切换，覆盖 GUI 所有文本及 visualizer.py 图表标签。页面底部版权栏。实现 CanteenVisualizer 类，基于 Matplotlib 完成 2D 校园地图实时渲染、FuncAnimation 动画驱动、实时统计曲线与状态分布饼图、交互控制（暂停/调速/重置视图）、跨平台字体适配。编写 `test_member_c_integration.py`（114 项）覆盖登录验证、参数校验、GUI 接口集成、策略权重映射、可视化集成、全链路端到端及异常场景。
 
 ## 🚀 快速开始
 
@@ -80,12 +80,22 @@ python main.py --visualize             # 启用可视化（预留功能）
 bjtu_canteen_simulation/
 ├── models.py              # 数据模型：Student, Canteen, 策略接口
 ├── engine.py              # 仿真引擎：SimulationEngine（Tick驱动）
-├── main.py                # 主程序入口：命令行接口
+├── main.py                # 主程序入口：命令行接口 + GUI接口函数（v2.2.1）
 ├── test_simulation.py     # 测试套件：单元测试、集成测试
-├── config.py              # ✅ 配置模块：BJTU地图坐标、仿真参数（v1.4）
+├── config.py              # ✅ 配置模块：BJTU地图坐标、仿真参数（v1.5）
 ├── strategies.py          # ✅ 策略模块：多食堂选择算法完整实现（v2.0）
-├── visualizer.py          # ✅ 可视化模块：Matplotlib动态渲染、校园底图加载、真实坐标对齐（v1.1）
+├── visualizer.py          # ✅ 可视化模块：Matplotlib动态渲染、校园底图加载、真实坐标对齐、多语言支持（v2.2）
+├── gui.py                 # ✅ GUI模块：Tkinter登录界面+仿真参数配置+三语切换（v2.0）
+├── gui_users.txt          # ✅ 用户数据文件：本地账号密码存储
 ├── campus_bounds.json     # ✅ 校园边界和建筑坐标文件（v1.1）
+├── campus_map.png         # ✅ 校园底图图片
+├── school_logo.png        # ✅ 校徽logo图片
+├── picture1-4.png         # ✅ 校园展示图片
+├── test_member_a.py       # 组长A测试脚本（25项）
+├── test_member_b.py       # 组员B测试脚本（34项）
+├── test_member_c.py       # 组员C测试脚本（15项）
+├── test_member_c_integration.py # ✅ 组员C GUI集成测试（114项）
+├── example_config.json    # 示例配置文件
 ├── .gitignore             # Git忽略配置
 ├── README.md              # 项目文档
 ├── simulation_results.json # 仿真结果输出示例
@@ -268,7 +278,6 @@ python main.py --config example_config.json
 ### 🔄 待实现
 - [ ] 性能优化和大规模仿真测试
 - [ ] 错峰方案对比功能实现
-- [ ] GUI界面开发（Tkinter）
 
 ### ✅ 新增完成（2026/04/23）
 - [x] strategies.py：完整的多食堂选择算法实现，支持：
@@ -299,6 +308,32 @@ python main.py --config example_config.json
   - 修复排队学生被重复加入多个窗口的bug
 - [x] **config.py v1.4**：`get_simulation_config`新增`canteen_names`和`spawn_positions`动态推导
 
+### ✅ 新增完成（2026/05/11）
+- [x] **gui.py v2.0：完整 Tkinter GUI 实现**，包括：
+  - 登录验证界面：角色选择（学生/教师，默认均不选）、账号/密码/验证码输入、CAS 风格宝蓝（#2260d6）主题 UI
+  - 校徽 logo 嵌入标题栏左侧，尺寸适配（68×68）
+  - 注册功能：学生学号 8 位/教师工号 4-5 位数字校验，默认密码=账号@bjtu
+  - 忘记密码：提示联系管理员重置（24281213@bjtu.edu.cn）
+  - 访客模式：独立按钮直接跳转交大主页（www.bjtu.edu.cn）
+  - 登录锁定：单账号最多 5 次错误尝试，超限锁定
+  - 验证码：Canvas 绘制 4 位字母数字混合码，含噪点噪线干扰，点击刷新
+  - 仿真参数配置面板：仿真时长/学生总数/食堂数量/生成率输入框
+  - 策略选择下拉框：距离优先/排队优先/平衡三种策略
+  - α（距离权重）β（排队权重）滑块调节（0.0-1.0，步长 0.1）
+  - 可视化开关复选框 + JSON 配置文件加载器
+  - 后台线程调用 `main.run_simulation_from_gui` 启动仿真，结果显示区
+  - 4 张校园图片（picture1-4.png）横排展示于登录卡片下方
+  - 友情链接区：交大主页 + 后勤集团（hq.bjtu.edu.cn），黄底红字闪烁动画（600ms 周期）
+  - 简/繁/EN 三语切换按钮（标题栏右上角），覆盖 GUI 全部文本、弹窗及 visualizer.py 图表标签
+  - 页面底部版权栏：Copyright © 2026 BJTU 软件综合实训 2026 春杨武杰班级第 2 小组
+  - 重要提示：卡片内红色加粗"‼️重要‼️：第一次登录请先注册"
+- [x] **visualizer.py v2.2：多语言可视化支持**，包括：
+  - 内置中英繁三语翻译表，覆盖窗口标题、坐标轴标签、图例、状态面板
+  - `__init__` 新增 `lang` 参数，初始化时自动选择对应语言文本
+  - `_create_figure`、`_add_legend`、`_update_info_text` 全部使用翻译字符串
+- [x] **main.py v2.2.1**：`create_config_from_gui` 传递 `lang` 参数，`initialize_visualization` 接收并传递至 CanteenVisualizer
+- [x] **test_member_c_integration.py v1.0**：GUI 集成测试脚本，覆盖登录验证（17 项）、用户文件操作（6 项）、参数校验（12 项）、GUI 接口（9 项）、策略权重映射（5 项）、配置文件加载（13 项）、可视化集成（8 项）、全链路异常场景（8 项）、GUI 模块结构（21 项）、新增功能（8 项）、交互测试（7 项），共 114 项全部通过
+
 ## 👥 团队协作流程
 
 1. **代码规范**：遵循PEP8，添加详细中文注释
@@ -317,5 +352,5 @@ python main.py --config example_config.json
 
 ---
 
-**项目状态**：核心仿真引擎已完成，配置模块（v1.4）和校园边界文件（v1.1）已就绪，多食堂选择算法已完整实现并集成，可视化模块已完善（v1.1），**主程序v2.0已完成全模块集成**，进入性能优化和GUI开发阶段
+**项目状态**：核心仿真引擎已完成，配置模块（v1.5）和校园边界文件（v1.1）已就绪，多食堂选择算法已完整实现并集成，可视化模块已完善（v2.2 多语言支持），GUI 模块（v2.0）已完整实现含登录验证/参数配置/三语切换，主程序 v2.2.1 已完成全模块集成，114 项集成测试全部通过，进入性能优化阶段
 
