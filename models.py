@@ -446,9 +446,8 @@ class Window:
             # 增加服务计时器
             self.service_timer += 1
 
-            # 检查服务是否完成（简单实现：固定服务时间）
-            # 实际应根据service_rate计算所需时间
-            if self.service_timer >= 3:  # 简单假设每个学生需要3个周期服务
+            # 检查服务是否完成：服务时间 5-10 tick，配合 service_rate 微调
+            if self.service_timer >= max(5, int(10 / max(self.service_rate, 0.1))):
                 # 完成当前服务
                 self.is_serving = False
                 self.current_student = None

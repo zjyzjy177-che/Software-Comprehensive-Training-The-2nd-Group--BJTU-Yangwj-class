@@ -44,7 +44,7 @@ else:
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 from matplotlib.animation import FuncAnimation
-from matplotlib.patches import Circle, Rectangle
+from matplotlib.patches import Circle, Rectangle, Polygon
 import numpy as np
 from typing import List, Dict, Tuple, Any, Optional
 from models import Student, Canteen, StudentState
@@ -232,10 +232,10 @@ class CanteenVisualizer:
         self.colors = {
             'background': '#F5F5F5',
             'grid': '#CCCCCC',
-            'student_walking': '#3498DB',    # 蓝色：行走
-            'student_queuing': '#E74C3C',    # 红色：排队
-            'student_eating': '#2ECC71',     # 绿色：用餐
-            'student_leaving': '#9B59B6',    # 紫色：离开
+            'student_walking': '#1E90FF',    # 亮蓝：行走
+            'student_queuing': '#FF2D2D',    # 亮红：排队
+            'student_eating': '#00E640',     # 亮绿：用餐
+            'student_leaving': '#BF5FFF',    # 亮紫：离开
             'canteen': '#F39C12',            # 橙色：食堂
             'canteen_busy': '#E67E22',       # 深橙色：繁忙食堂
             'text': '#2C3E50',               # 深灰色：文本
@@ -244,7 +244,7 @@ class CanteenVisualizer:
         }
 
         # 尺寸配置
-        self.point_size = 8         # 学生点大小
+        self.point_size = 5         # 学生点大小
         self.canteen_size = 20      # 食堂标记大小
         self.font_size = 10         # 字体大小
 
@@ -358,7 +358,7 @@ class CanteenVisualizer:
         # 创建网格布局：2×2 经典布局
         gs = self.fig.add_gridspec(2, 2, width_ratios=[7, 3], height_ratios=[7, 3],
                                   left=0.05, right=0.95, top=0.9, bottom=0.1,
-                                  wspace=0.15, hspace=0.2)
+                                  wspace=0.15, hspace=0.3)
 
         # 子图1：2D地图（左上，占大部分空间）
         self.ax_map = self.fig.add_subplot(gs[0, 0])
@@ -399,22 +399,14 @@ class CanteenVisualizer:
         self.ax_pie.set_title(_viz_t("pie_title", self.lang), fontsize=11, fontweight='bold')
         self.ax_pie.set_facecolor('#FFFFFF')
 
-        # 子图4：信息面板（左下 — 仿真数据 + 食堂排队详情）
+        # 子图4：信息面板（左下 — 仿真数据 + 食堂排队详情，合并在一个 text 中）
         ax_info = self.fig.add_subplot(gs[1, 0])
         ax_info.axis('off')
 
-        # 上半部分：仿真信息
         self.info_text = ax_info.text(0.02, 0.98, _viz_t("info_loading", self.lang),
                                      transform=ax_info.transAxes,
-                                     fontsize=8, verticalalignment='top',
+                                     fontsize=8.5, verticalalignment='top',
                                      color=self.colors['text'])
-        # 下半部分：食堂排队详情（紧凑格式）
-        self.canteen_text = ax_info.text(0.02, 0.42, '',
-                                         transform=ax_info.transAxes,
-                                         fontsize=7.5, verticalalignment='top',
-                                         color=self.colors['text'])
-
-        self.ax_canteen = ax_info  # 兼容旧引用
 
         # 添加图例（在地图子图上）
         self._add_legend()
@@ -443,13 +435,13 @@ class CanteenVisualizer:
             plt.Line2D([0], [0], marker='o', color='w',
                       markerfacecolor=self.colors['student_leaving'],
                       markersize=8, label=_viz_t("legend_leaving", self.lang)),
-            plt.Line2D([0], [0], marker='s', color='w',
-                      markerfacecolor=self.colors['canteen'],
+            plt.Line2D([0], [0], marker='^', color='w',
+                      markerfacecolor='#FFD700', markeredgecolor='#CC9900',
                       markersize=10, label=_viz_t("legend_canteen", self.lang)),
         ]
 
         # 添加图例
-        self.ax_map.legend(handles=legend_elements, loc='upper left',
+        self.ax_map.legend(handles=legend_elements, loc='upper right',
                           fontsize=8, framealpha=0.9)
 
     def _setup_events(self) -> None:
@@ -608,33 +600,29 @@ class CanteenVisualizer:
             # 计算食堂繁忙程度（0-1）
             busyness = min(queue_length / max(capacity, 1), 1.0)
 
-            # 选择颜色（根据繁忙程度）
-            if busyness > 0.7:
-                color = self.colors['canteen_busy']
-            else:
-                color = self.colors['canteen']
+            # 黄色三角标记食堂位置
+            tri_size = self.canteen_size
+            tri = Polygon([
+                (x, y + tri_size),          # 顶点
+                (x - tri_size * 0.6, y),   # 左下
+                (x + tri_size * 0.6, y),   # 右下
+            ], facecolor='#FFD700', edgecolor='#CC9900', alpha=0.9, linewidth=1.5, zorder=5)
+            self.ax_map.add_patch(tri)
+            self.canteen_rects.append(tri)
 
-            # 绘制食堂矩形
-            rect_size = self.canteen_size * (0.5 + 0.5 * busyness)
-            rect = Rectangle((x - rect_size/2, y - rect_size/2),
-                            rect_size, rect_size,
-                            facecolor=color, edgecolor='black',
-                            alpha=0.8, linewidth=1)
-            self.ax_map.add_patch(rect)
-            self.canteen_rects.append(rect)
-
-            # 添加食堂名称标签
-            label = self.ax_map.text(x, y + rect_size/2 + 5, canteen.name,
-                                    fontsize=self.font_size - 2,
+            # 食堂名称标签（亮红加粗）
+            label = self.ax_map.text(x, y + tri_size + 4, canteen.name,
+                                    fontsize=self.font_size + 1,
                                     ha='center', va='bottom',
-                                    color=self.colors['text'])
+                                    color='#FF2222', fontweight='bold')
             self.text_labels.append(label)
 
-            # 绘制排队柱状图（在食堂上方）
+            # 绘制排队柱状图（在三角上方）
             if queue_length > 0:
-                bar_width = rect_size * 0.8
-                bar_height = min(queue_length * 2, 50)  # 限制最大高度
-                bar = Rectangle((x - bar_width/2, y + rect_size/2),
+                bar_width = tri_size * 0.7
+                bar_height = min(queue_length * 2, 50)
+                bar_top = y + tri_size + 6 + self.font_size + 4  # 从名称标签上方开始
+                bar = Rectangle((x - bar_width/2, bar_top),
                                bar_width, bar_height,
                                facecolor=self.colors['queue_bar'],
                                edgecolor='black', alpha=0.7, linewidth=1)
@@ -642,7 +630,7 @@ class CanteenVisualizer:
                 self.queue_bars.append(bar)
 
                 # 排队人数标签
-                queue_text = self.ax_map.text(x, y + rect_size/2 + bar_height/2,
+                queue_text = self.ax_map.text(x, bar_top + bar_height/2,
                                              str(queue_length),
                                              fontsize=self.font_size - 3,
                                              ha='center', va='center',
@@ -690,11 +678,19 @@ class CanteenVisualizer:
             else:
                 color = 'gray'
 
-            # 提取坐标
-            x_coords = [student.position[0] for student in student_list]
-            y_coords = [student.position[1] for student in student_list]
+            # 提取坐标，排队/用餐加随机偏移避免扎堆重叠
+            import random as _rnd
+            x_coords = []
+            y_coords = []
+            for s in student_list:
+                px, py = s.position
+                if s.state in (StudentState.QUEUING, StudentState.EATING):
+                    px += _rnd.uniform(-14, 14)
+                    py += _rnd.uniform(-14, 14)
+                x_coords.append(px)
+                y_coords.append(py)
 
-            # 批量绘制点（性能优化）
+            # 批量绘制点
             points = self.ax_map.scatter(x_coords, y_coords,
                                         s=self.point_size**2,
                                         c=color, alpha=0.8,
@@ -849,23 +845,19 @@ class CanteenVisualizer:
             f"{_viz_t('info_status', lang)}: {_viz_t('info_paused', lang) if self.is_paused else _viz_t('info_running', lang)}",
         ]
 
-        # 更新左侧信息面板
-        info_text = "\n".join(info_lines)
-        self.info_text.set_text(info_text)
-
-        # 更新右下角食堂排队详情
+        # 更新左侧信息面板（仿真数据 + 食堂排队合并在一个 text 中）
         max_show = 6
-        canteen_lines = [_viz_t("canteen_header", lang)]
+        canteen_lines = ["", _viz_t("canteen_header", lang)]
         for i, canteen in enumerate(canteens[:max_show]):
             queue_len = canteen.get_total_queue_length()
             capacity = canteen.capacity
-            bar_len = min(int(queue_len / max(capacity, 1) * 10), 10)
-            bar = "#" * bar_len + "." * (10 - bar_len)
-            canteen_lines.append(f" {canteen.name}")
-            canteen_lines.append(f"  [{bar}] {queue_len}/{capacity}")
+            bar_len = min(int(queue_len / max(capacity, 1) * 8), 8)
+            bar = "#" * bar_len + "." * (8 - bar_len)
+            canteen_lines.append(f" {canteen.name} [{bar}] {queue_len}/{capacity}")
         if len(canteens) > max_show:
             canteen_lines.append(" " + _viz_t("canteen_remaining", lang, count=len(canteens) - max_show))
-        self.canteen_text.set_text("\n".join(canteen_lines))
+        all_lines = info_lines + canteen_lines
+        self.info_text.set_text("\n".join(all_lines))
 
     def start_animation(self, update_func, interval: int = 50) -> None:
         """
