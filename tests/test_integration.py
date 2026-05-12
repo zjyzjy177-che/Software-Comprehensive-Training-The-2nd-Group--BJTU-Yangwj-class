@@ -24,7 +24,7 @@ import tempfile
 import shutil
 from typing import Dict, Any
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from models import Student, Canteen, StudentState
 from engine import SimulationEngine
@@ -40,7 +40,7 @@ class TestDataFlowJSONToEngine(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.json_path = os.path.join(os.path.dirname(__file__), 'campus_bounds.json')
+        cls.json_path = os.path.join(os.path.dirname(__file__), '..', 'campus_bounds.json')
 
     def test_01_json_loads_successfully(self):
         """campus_bounds.json 存在且格式合法"""

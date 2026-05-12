@@ -20,9 +20,12 @@ python test_simulation.py --integration  # 只运行集成测试
 """
 
 import sys
+import os
 import unittest
 import random
 from typing import List, Dict, Any
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # 导入被测试模块
 from models import Student, Canteen, StudentState, DistanceBasedStrategy

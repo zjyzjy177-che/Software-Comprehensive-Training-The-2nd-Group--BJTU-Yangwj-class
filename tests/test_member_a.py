@@ -18,7 +18,7 @@ import sys
 import os
 import time
 
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 TESTS_PASSED = 0
 TESTS_FAILED = 0

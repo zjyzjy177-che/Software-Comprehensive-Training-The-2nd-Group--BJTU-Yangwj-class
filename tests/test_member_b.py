@@ -19,7 +19,7 @@ import os
 import json
 import math
 
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 TESTS_PASSED = 0
 TESTS_FAILED = 0

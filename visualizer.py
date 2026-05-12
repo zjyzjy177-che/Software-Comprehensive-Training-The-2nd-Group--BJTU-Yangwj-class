@@ -254,7 +254,7 @@ class CanteenVisualizer:
         # 加载真实校园底图图片（如有）
         try:
             import matplotlib.image as mpimg
-            img_path = os.path.join(os.path.dirname(__file__), 'campus_map.png')
+            img_path = os.path.join(os.path.dirname(__file__), 'assets', 'campus_map.png')
             if os.path.exists(img_path):
                 img = mpimg.imread(img_path)
                 self.ax_map.imshow(img, extent=[self.x_min, self.x_max, self.y_min, self.y_max], aspect='auto', alpha=0.6, zorder=0)

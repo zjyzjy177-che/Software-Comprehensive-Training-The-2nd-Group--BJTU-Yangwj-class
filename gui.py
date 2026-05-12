@@ -515,7 +515,7 @@ class BJTUSimulationGUI:
         header.pack(fill="x")
         header.pack_propagate(False)
 
-        logo_path = os.path.join(os.path.dirname(__file__), "school_logo.png")
+        logo_path = os.path.join(os.path.dirname(__file__), "assets", "school_logo.png")
         self.logo_img = None
         if HAS_PIL and os.path.exists(logo_path):
             try:
@@ -676,7 +676,7 @@ class BJTUSimulationGUI:
             pic_frame = tk.Frame(self.login_frame, bg=self.BG)
             has_any = False
             for i in range(1, 5):
-                pic_path = os.path.join(os.path.dirname(__file__), f"picture{i}.png")
+                pic_path = os.path.join(os.path.dirname(__file__), "assets", f"picture{i}.png")
                 if os.path.exists(pic_path):
                     try:
                         img = Image.open(pic_path)
