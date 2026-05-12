@@ -78,18 +78,27 @@ python main.py --visualize             # 启用可视化（预留功能）
 
 ```
 bjtu_canteen_simulation/
-├── models.py              # 数据模型：Student, Canteen, 策略接口
-├── engine.py              # 仿真引擎：SimulationEngine（Tick驱动）
-├── main.py                # 主程序入口：命令行接口
-├── test_simulation.py     # 测试套件：单元测试、集成测试
-├── config.py              # ✅ 配置模块：BJTU地图坐标、仿真参数（v1.4）
-├── strategies.py          # ✅ 策略模块：多食堂选择算法完整实现（v2.0）
-├── visualizer.py          # ✅ 可视化模块：Matplotlib动态渲染、校园底图加载、真实坐标对齐（v1.1）
-├── campus_bounds.json     # ✅ 校园边界和建筑坐标文件（v1.1）
-├── .gitignore             # Git忽略配置
-├── README.md              # 项目文档
-├── simulation_results.json # 仿真结果输出示例
-└── simulation_results_summary.txt # 仿真结果摘要
+├── models.py                # 数据模型：Student FSM, Window FIFO队列, Canteen多窗口管理
+├── engine.py                # 仿真引擎：SimulationEngine（Tick驱动），集成CanteenSelector
+├── main.py                  # 主程序入口：CLI + 可视化 + run_simulation_from_gui供GUI调用
+├── config.py                # ✅ 配置模块：BJTU地图坐标、仿真参数、JSON导入导出（v1.5）
+├── strategies.py            # ✅ 策略模块：多食堂选择算法（α距离+β排队+效率因子）（v2.0）
+├── visualizer.py            # ✅ 可视化模块：Matplotlib动画、三语支持、跨平台字体、TkAgg后端（v2.3.1）
+├── gui.py                   # ✅ GUI模块：Tkinter登录/注册/验证码、参数配置、启动仿真（v2.1.1）
+├── campus_bounds.json       # ✅ 校园边界和32个建筑坐标（权威数据源）
+├── .gitignore               # Git忽略配置（含gui_users.txt等运行时文件）
+├── README.md                # 项目文档
+├── INTEGRATION_REPORT.md    # ✅ 集成联调测试报告模板（v1.0）
+├── simulation_results.json  # 仿真结果输出示例
+├── simulation_results_summary.txt  # 仿真结果摘要
+├── test_simulation.py       # 原始测试套件（单元+引擎+集成）
+├── test_member_a.py         # ✅ 组长A测试：Student FSM、Window/Canteen、引擎集成（25项）
+├── test_member_b.py         # ✅ 组员B测试：坐标验证、BJTUConfig、多食堂选择算法（34项）
+├── test_member_c.py         # ✅ 组员C测试：可视化初始化、帧渲染、main.py接口（15项）
+├── test_integration.py      # ✅ 集成联调测试：4条数据链路共24项用例（v1.0）
+├── picture1-4.png           # ✅ 校园展示图片
+├── school_logo.png          # ✅ 校徽logo
+└── campus_map.png           # 校园底图（visualizer加载）
 ```
 
 ## 🏗️ 核心模块说明
@@ -259,45 +268,60 @@ python main.py --config example_config.json
 - [x] 仿真引擎（engine.py）
 - [x] 主程序入口（main.py）
 - [x] 测试套件（test_simulation.py）
-- [x] 配置模块（config.py）：BJTU地图坐标、仿真参数、算法权重（v1.3）
-- [x] 校园边界文件（campus_bounds.json）：包含校园边界和32个建筑坐标（v0.1）
-- [x] 策略模块（strategies.py）：多食堂选择算法完整实现
-- [x] 可视化模块（visualizer.py）：Matplotlib动态渲染、校园底图加载、真实坐标对齐（v1.1）
+- [x] 配置模块（config.py）：BJTU地图坐标、仿真参数、算法权重（v1.5）
+- [x] 校园边界文件（campus_bounds.json）：包含校园边界和32个建筑坐标
+- [x] 策略模块（strategies.py）：多食堂选择算法完整实现（v2.0）
+- [x] 可视化模块（visualizer.py）：Matplotlib动态渲染、校园底图加载、三语支持（v2.3.1）
+- [x] GUI界面（gui.py）：Tkinter登录/注册/验证码/参数配置/启动仿真（v2.1.1）
+- [x] 跨平台兼容：Windows/macOS/Linux字体适配、macOS TkAgg后端动画修复
+- [x] 集成联调测试脚本（test_integration.py）：4条数据链路24项用例全部通过
+- [x] 联调测试报告模板（INTEGRATION_REPORT.md）
+- [x] 组长A单元测试（test_member_a.py）：25项
+- [x] 组员B单元测试（test_member_b.py）：34项
+- [x] 组员C单元测试（test_member_c.py）：15项
 - [x] Git版本控制和文档
 
-### 🔄 待实现
+### 🔄 待完成
+- [ ] 联调测试报告填入实际运行结果（三人各自跑完联调后汇总）
+- [ ] 错峰方案对比功能（peak_shift.py）
 - [ ] 性能优化和大规模仿真测试
-- [ ] 错峰方案对比功能实现
-- [ ] GUI界面开发（Tkinter）
 
-### ✅ 新增完成（2026/04/23）
-- [x] strategies.py：完整的多食堂选择算法实现，支持：
-  - 距离权重（α）和排队权重（β）配置
-  - 食堂效率因子（窗口数量×服务速率）
-  - 动态权重调整（高峰/非高峰时段）
-  - 与config.py和engine.py的完整集成
-  - 三种策略类型：距离优先、排队优先、平衡策略
+### ✅ 新增完成（2026/05/12 — 集成阶段）
+- [x] main.py v2.1.0：新增 `run_simulation_from_gui` 和 `create_config_from_gui` 函数，供 GUI 调用
+- [x] test_integration.py v1.0：全链路集成测试脚本，覆盖4条数据链路24项用例：
+  - 链路1：campus_bounds.json → config.py → engine.py（6项）
+  - 链路2：strategies.py → engine.py → models.py（4项）
+  - 链路3：engine.py → visualizer.py（3项）
+  - 链路4：全链路端到端 + GUI接口 + 异常场景（11项）
+- [x] INTEGRATION_REPORT.md v1.0：联调测试报告模板，含接口联通矩阵、数据流转验证、正常/异常场景用例
+- [x] visualizer.py v2.3.1：macOS后端从MacOSX改为TkAgg，解决Tkinter GUI中动画窗口无法弹出
+- [x] gui.py v2.1.1：模块顶部预置matplotlib.use('TkAgg')，防御性确保后端正确
+
+### ✅ 新增完成（2026/05/09 — GUI开发）
+- [x] gui.py v2.1：跨平台兼容性修复，包括：
+  - SYSTEM_FONT自动检测（Windows/macOS/Linux中文字体适配）
+  - 彩色按钮改为Frame+Label实现，解决macOS Aqua主题bg失效
+  - 图片加载优雅降级（PIL未安装或图片缺失时静默跳过）
+- [x] main.py v2.2.2：create_config_from_gui传递lang参数
+- [x] visualizer.py v2.3：全图表标签/图例/状态面板支持简繁En三语
 
 ### ✅ 新增完成（2026/04/27）
-- [x] visualizer.py v1.1：可视化模块功能完善，包括：
-  - 地图范围与campus_bounds.json对齐（-250,-400）-（450,200）
-  - 校园底图自动加载（campus_map.png）
-  - 测试数据使用三个真实食堂坐标（四食堂、一食堂、学活食堂）
-  - 交互控制：空格暂停/继续、上下箭头调速、R键重置视图
-  - 实时统计：排队人数曲线+状态分布饼图+信息面板
-  - 跨平台字体适配：支持Windows/macOS/Linux中文字体
-  - 缺陷修复：修复窗口关闭TclError和tight_layout兼容性警告
-  - 性能优化：增量更新、更新频率节流、历史数据长度限制
-- [x] **main.py v2.0：全模块集成完成**，包括：
-  - 集成BJTUConfig，启动时自动从campus_bounds.json加载坐标
-  - `initialize_visualization`和`update_visualization`从空壳变为真实实现
-  - `run_simulation`支持可视化模式（逐tick驱动动画）和非可视化模式（批量运行）
-- [x] **engine.py v1.2：坐标系统全面对齐**，包括：
-  - DEFAULT_MAP_BOUNDARIES对齐campus_bounds.json
-  - 食堂名称/窗口数从配置获取，不再硬编码
-  - 学生从真实建筑坐标生成（教学楼/宿舍楼）
-  - 修复排队学生被重复加入多个窗口的bug
-- [x] **config.py v1.4**：`get_simulation_config`新增`canteen_names`和`spawn_positions`动态推导
+- [x] visualizer.py v1.1：可视化模块功能完善
+- [x] main.py v2.0：全模块集成完成
+- [x] engine.py v1.2：坐标系统全面对齐
+- [x] config.py v1.4：canteen_names和spawn_positions动态推导
+
+### ✅ 新增完成（2026/04/23）
+- [x] strategies.py v2.0：完整的多食堂选择算法实现，支持三种策略类型
+
+### ✅ 新增完成（2026/04/初）
+- [x] GUI v2.0：BJTUSimulationGUI完整Tkinter实现（组员C）
+  - 登录验证（角色选择/验证码/注册/忘记密码/访客）
+  - CAS风格宝蓝主题UI、校徽logo标题栏
+  - 仿真参数配置面板、策略与权重调节
+  - 四图横排展示栏、友情链接闪烁动画
+  - 简繁En三语切换、版权栏
+- [x] 组长A/B/C 三人各自单元测试脚本（共74项）
 
 ## 👥 团队协作流程
 
@@ -317,5 +341,5 @@ python main.py --config example_config.json
 
 ---
 
-**项目状态**：核心仿真引擎已完成，配置模块（v1.4）和校园边界文件（v1.1）已就绪，多食堂选择算法已完整实现并集成，可视化模块已完善（v1.1），**主程序v2.0已完成全模块集成**，进入性能优化和GUI开发阶段
+**项目状态**：核心引擎/算法/可视化/GUI四大模块全部完成并集成联调通过（24项集成测试全部通过），三人各自单元测试共74项全部通过，跨平台兼容（Win/Mac/Linux）已验证。GUI支持登录验证→参数配置→启动仿真→动画展示→结果呈现的完整工作流。**当前阶段：集成联调测试收尾，待填入联调报告实际数据，进入错峰对比与性能优化。**
 
