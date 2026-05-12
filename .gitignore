@@ -215,3 +215,6 @@ simulation_results*.txt
 *.output
 __pycache__/
 test_frame.png
+
+# 测试输出图片（由 visualizer 生成，不纳入版本控制）
+test_frame.png
