@@ -31,7 +31,7 @@ import matplotlib
 # ============================================================
 _SYSTEM = platform.system()
 if _SYSTEM == 'Darwin':
-    matplotlib.use('MacOSX')
+    matplotlib.use('TkAgg')  # 使用 TkAgg 与 Tkinter GUI 兼容，避免 MacOSX Cocoa 冲突
 elif _SYSTEM == 'Windows':
     matplotlib.use('TkAgg')
 else:

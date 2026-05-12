@@ -19,6 +19,10 @@ import random
 import string
 import webbrowser
 
+# 必须在任何 matplotlib 导入前设置后端，否则 Tkinter GUI + MacOSX Cocoa 冲突导致动画窗口无法弹出
+import matplotlib
+matplotlib.use('TkAgg')
+
 try:
     from PIL import Image, ImageTk
     HAS_PIL = True
