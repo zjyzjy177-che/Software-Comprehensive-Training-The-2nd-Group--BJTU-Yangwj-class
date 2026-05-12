@@ -719,16 +719,17 @@ class CanteenVisualizer:
             f"动画状态: {'暂停' if self.is_paused else '运行'}",
         ]
 
-        # 添加食堂详细信息（最多显示3个）
+        # 添加食堂详细信息（≤7 全显示，>7 显示前7个+省略提示）
         info_lines.append("\n食堂排队情况:")
-        for i, canteen in enumerate(canteens[:3]):
+        max_show = 7
+        for i, canteen in enumerate(canteens[:max_show]):
             queue_len = canteen.get_total_queue_length()
             capacity = canteen.capacity
             utilization = queue_len / max(capacity, 1) * 100
             info_lines.append(f"  {canteen.name}: {queue_len}/{capacity} ({utilization:.1f}%)")
 
-        if len(canteens) > 3:
-            info_lines.append(f"  ... 还有{len(canteens)-3}个食堂")
+        if len(canteens) > max_show:
+            info_lines.append(f"  ... 还有{len(canteens) - max_show}个食堂未显示")
 
         # 更新信息文本
         info_text = "\n".join(info_lines)

@@ -440,6 +440,84 @@ def validate_password(password):
     return True, password
 
 
+# ====================== ToolTip 悬停提示 ======================
+class ToolTip:
+    """鼠标悬停时在 ? 图标旁弹出参数说明"""
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tip_window = None
+        widget.bind("<Enter>", self._show)
+        widget.bind("<Leave>", self._hide)
+
+    def _show(self, event=None):
+        if self.tip_window or not self.text:
+            return
+        x = self.widget.winfo_rootx() + 20
+        y = self.widget.winfo_rooty() + 20
+        self.tip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(tw, text=self.text, justify="left",
+                         background="#ffffcc", foreground="#333333",
+                         font=(SYSTEM_FONT, 9), relief="solid", borderwidth=1,
+                         padx=8, pady=4, wraplength=320)
+        label.pack()
+
+    def _hide(self, event=None):
+        if self.tip_window:
+            self.tip_window.destroy()
+            self.tip_window = None
+
+
+# ====================== 参数提示文本 ======================
+_PARAM_TOOLTIPS = {
+    "ticks": "仿真时长（周期数）\n"
+            "• 一个 tick 模拟若干秒\n"
+            "• 建议范围：50-1000\n"
+            "• ⚠ 超过 5000 可能明显卡顿",
+    "students": "初始学生数量\n"
+               "• 影响排队压力和运算量\n"
+               "• 建议范围：10-500\n"
+               "• ⚠ 超过 2000 可能卡顿（取决于电脑性能）",
+    "canteens": "食堂数量\n"
+               "• 每个食堂有独立窗口和容量\n"
+               "• 建议范围：1-7\n"
+               "• ⚠ 超过 10 个食堂动画信息面板会截断显示",
+    "spawn": "学生生成速率（0-1）\n"
+            "• 每个 tick 生成新学生的概率\n"
+            "• 建议范围：0.01-0.3\n"
+            "• 0 = 不生成新学生，仅用初始学生",
+    "strategy": "食堂选择策略\n"
+               "• distance：优先选最近食堂\n"
+               "• queue：优先选排队最短食堂\n"
+               "• balanced：综合距离和排队人数",
+    "alpha": "距离权重（α）\n"
+            "• 值越大 → 学生越倾向去近的食堂\n"
+            "• 建议：高峰时段设 0.3，平峰 0.8",
+    "beta": "排队人数权重（β）\n"
+           "• 值越大 → 学生越倾向去人少的食堂\n"
+           "• 建议：高峰时段设 0.7，平峰 0.2",
+    "viz": "启用后弹出 Matplotlib 动画窗口\n"
+          "• 实时显示学生移动和食堂排队\n"
+          "• 注意：学生数 > 500 时动画可能卡顿\n"
+          "• 按空格暂停，↑↓ 调速，R 重置视图",
+}
+
+# 参数上限建议（点击启动时若超过会弹确认框）
+_PARAM_LIMITS = {
+    "ticks": 5000,
+    "students": 2000,
+    "canteens": 15,
+    "spawn": 1.0,
+}
+_PARAM_LIMIT_WARNINGS = {
+    "ticks": "ticks 超过 5000 可能导致仿真运行缓慢或卡顿",
+    "students": "学生数超过 2000 可能导致仿真和动画严重卡顿",
+    "canteens": "食堂数超过 15 个，信息面板可能显示不全",
+}
+
+
 # ====================== GUI 主类 ======================
 class BJTUSimulationGUI:
     def __init__(self):
@@ -794,19 +872,26 @@ class BJTUSimulationGUI:
         self.lf_params.pack(fill="x", padx=10, pady=8)
 
         params = [
-            ("ticks_label", "entry_ticks", "150"),
-            ("students_label", "entry_students", "30"),
-            ("canteens_label", "entry_canteens", "2"),
-            ("spawn_label", "entry_spawn", "0.08"),
+            ("ticks_label", "entry_ticks", "150", "ticks"),
+            ("students_label", "entry_students", "30", "students"),
+            ("canteens_label", "entry_canteens", "2", "canteens"),
+            ("spawn_label", "entry_spawn", "0.08", "spawn"),
         ]
         self._config_param_labels = []
-        for i, (tkey, attr, default) in enumerate(params):
+        for i, (tkey, attr, default, tip_key) in enumerate(params):
             lbl = tk.Label(self.lf_params, text=self.t(tkey), font=(SYSTEM_FONT, 11), bg=self.BG)
-            lbl.grid(row=i, column=0, padx=5, pady=6, sticky="e")
+            lbl.grid(row=i, column=0, padx=(5, 0), pady=6, sticky="e")
             self._config_param_labels.append((lbl, tkey))
-            entry = tk.Entry(self.lf_params, font=(SYSTEM_FONT, 11), width=14, relief="solid", bd=1)
+            # ? 信息图标
+            tip_text = _PARAM_TOOLTIPS.get(tip_key, "")
+            tip_icon = tk.Label(self.lf_params, text="?", font=(SYSTEM_FONT, 9, "bold"),
+                                bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow",
+                                width=2, relief="flat")
+            tip_icon.grid(row=i, column=1, padx=(0, 3), pady=6, sticky="w")
+            ToolTip(tip_icon, tip_text)
+            entry = tk.Entry(self.lf_params, font=(SYSTEM_FONT, 11), width=12, relief="solid", bd=1)
             entry.insert(0, default)
-            entry.grid(row=i, column=1, padx=5, pady=6, sticky="w")
+            entry.grid(row=i, column=2, padx=(0, 5), pady=6, sticky="w")
             setattr(self, attr, entry)
 
         # 策略选择
@@ -816,12 +901,16 @@ class BJTUSimulationGUI:
         self.lf_strategy.pack(fill="x", padx=10, pady=8)
         self.lbl_choose_strat = tk.Label(self.lf_strategy, text=self.t("choose_strategy"),
                                          font=(SYSTEM_FONT, 11), bg=self.BG)
-        self.lbl_choose_strat.grid(row=0, column=0, padx=5, pady=6, sticky="e")
+        self.lbl_choose_strat.grid(row=0, column=0, padx=(5, 0), pady=6, sticky="e")
+        tip_strat = tk.Label(self.lf_strategy, text="?", font=(SYSTEM_FONT, 9, "bold"),
+                             bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow", width=2)
+        tip_strat.grid(row=0, column=1, padx=(0, 3), pady=6, sticky="w")
+        ToolTip(tip_strat, _PARAM_TOOLTIPS["strategy"])
         self.strategy_var = tk.StringVar(value="balanced")
         ttk.Combobox(self.lf_strategy, textvariable=self.strategy_var,
                      values=["distance", "queue", "balanced"],
                      state="readonly", font=(SYSTEM_FONT, 11), width=14).grid(
-            row=0, column=1, padx=5, pady=6, sticky="w")
+            row=0, column=2, padx=(0, 5), pady=6, sticky="w")
 
         # 权重调节
         self.lf_weight = tk.LabelFrame(self.config_scrollable, text=self.t("weight_label"),
@@ -831,26 +920,34 @@ class BJTUSimulationGUI:
 
         self.lbl_alpha = tk.Label(self.lf_weight, text=self.t("alpha_label"),
                                   font=(SYSTEM_FONT, 11), bg=self.BG)
-        self.lbl_alpha.grid(row=0, column=0, padx=5, pady=6, sticky="e")
+        self.lbl_alpha.grid(row=0, column=0, padx=(5, 0), pady=6, sticky="e")
+        tip_a = tk.Label(self.lf_weight, text="?", font=(SYSTEM_FONT, 9, "bold"),
+                         bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow", width=2)
+        tip_a.grid(row=0, column=1, padx=(0, 3), pady=6, sticky="w")
+        ToolTip(tip_a, _PARAM_TOOLTIPS["alpha"])
         self.alpha_var = tk.DoubleVar(value=0.5)
         alpha_slider = tk.Scale(self.lf_weight, from_=0.0, to=1.0, resolution=0.1,
-                                variable=self.alpha_var, orient="horizontal", length=180,
+                                variable=self.alpha_var, orient="horizontal", length=160,
                                 bg=self.BG, font=(SYSTEM_FONT, 9))
-        alpha_slider.grid(row=0, column=1, padx=5, pady=6, sticky="w")
+        alpha_slider.grid(row=0, column=2, padx=5, pady=6, sticky="w")
         self.alpha_label = tk.Label(self.lf_weight, text="0.5", font=(SYSTEM_FONT, 11), bg=self.BG, width=5)
-        self.alpha_label.grid(row=0, column=2, padx=5, pady=6)
+        self.alpha_label.grid(row=0, column=3, padx=5, pady=6)
         alpha_slider.config(command=lambda v: self.alpha_label.config(text=f"{float(v):.1f}"))
 
         self.lbl_beta = tk.Label(self.lf_weight, text=self.t("beta_label"),
                                  font=(SYSTEM_FONT, 11), bg=self.BG)
-        self.lbl_beta.grid(row=1, column=0, padx=5, pady=6, sticky="e")
+        self.lbl_beta.grid(row=1, column=0, padx=(5, 0), pady=6, sticky="e")
+        tip_b = tk.Label(self.lf_weight, text="?", font=(SYSTEM_FONT, 9, "bold"),
+                         bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow", width=2)
+        tip_b.grid(row=1, column=1, padx=(0, 3), pady=6, sticky="w")
+        ToolTip(tip_b, _PARAM_TOOLTIPS["beta"])
         self.beta_var = tk.DoubleVar(value=0.5)
         beta_slider = tk.Scale(self.lf_weight, from_=0.0, to=1.0, resolution=0.1,
-                               variable=self.beta_var, orient="horizontal", length=180,
+                               variable=self.beta_var, orient="horizontal", length=160,
                                bg=self.BG, font=(SYSTEM_FONT, 9))
-        beta_slider.grid(row=1, column=1, padx=5, pady=6, sticky="w")
+        beta_slider.grid(row=1, column=2, padx=5, pady=6, sticky="w")
         self.beta_label = tk.Label(self.lf_weight, text="0.5", font=(SYSTEM_FONT, 11), bg=self.BG, width=5)
-        self.beta_label.grid(row=1, column=2, padx=5, pady=6)
+        self.beta_label.grid(row=1, column=3, padx=5, pady=6)
         beta_slider.config(command=lambda v: self.beta_label.config(text=f"{float(v):.1f}"))
 
         # 其他选项
@@ -863,7 +960,11 @@ class BJTUSimulationGUI:
         self.cb_viz = tk.Checkbutton(self.lf_other, text=self.t("enable_viz"),
                                      variable=self.enable_viz_var, font=(SYSTEM_FONT, 11),
                                      bg=self.BG)
-        self.cb_viz.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky="w")
+        self.cb_viz.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        tip_viz = tk.Label(self.lf_other, text="?", font=(SYSTEM_FONT, 9, "bold"),
+                           bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow", width=2)
+        tip_viz.grid(row=0, column=1, padx=(0, 5), pady=5, sticky="w")
+        ToolTip(tip_viz, _PARAM_TOOLTIPS["viz"])
 
         self.config_path_var = tk.StringVar()
         self.btn_browse = self._make_btn(self.lf_other, self.t("browse_config"),
@@ -1229,6 +1330,24 @@ class BJTUSimulationGUI:
         if errors:
             messagebox.showwarning(self.t("param_invalid"), "\n".join(errors))
             return
+
+        # 参数上限检查：超过建议值弹确认框
+        limit_warnings = []
+        ticks_val = int(self.entry_ticks.get())
+        students_val = int(self.entry_students.get())
+        canteens_val = int(self.entry_canteens.get())
+        if ticks_val > _PARAM_LIMITS["ticks"]:
+            limit_warnings.append(_PARAM_LIMIT_WARNINGS["ticks"])
+        if students_val > _PARAM_LIMITS["students"]:
+            limit_warnings.append(_PARAM_LIMIT_WARNINGS["students"])
+        if canteens_val > _PARAM_LIMITS["canteens"]:
+            limit_warnings.append(_PARAM_LIMIT_WARNINGS["canteens"])
+        if limit_warnings:
+            msg = "以下参数超过建议上限，可能导致卡顿或崩溃：\n\n"
+            msg += "\n".join(f"  • {w}" for w in limit_warnings)
+            msg += "\n\n确定要继续吗？"
+            if not messagebox.askyesno("参数上限警告", msg):
+                return
 
         config_dict = {
             'max_ticks': int(self.entry_ticks.get()),
