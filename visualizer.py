@@ -233,13 +233,13 @@ class CanteenVisualizer:
           下方：学生状态分布饼图
         """
         # 创建图形窗口
-        self.fig = plt.figure(figsize=(14, 8), facecolor=self.colors['background'])
+        self.fig = plt.figure(figsize=(15, 8), facecolor=self.colors['background'])
         self.fig.suptitle(title, fontsize=16, fontweight='bold', color=self.colors['text'])
 
-        # 创建网格布局
-        gs = self.fig.add_gridspec(2, 2, width_ratios=[7, 3], height_ratios=[7, 3],
+        # 创建网格布局：3行2列，右下角专门放食堂排队文字
+        gs = self.fig.add_gridspec(3, 2, width_ratios=[7, 3], height_ratios=[5, 3, 2],
                                   left=0.05, right=0.95, top=0.9, bottom=0.1,
-                                  wspace=0.15, hspace=0.2)
+                                  wspace=0.15, hspace=0.25)
 
         # 子图1：2D地图（左上，占大部分空间）
         self.ax_map = self.fig.add_subplot(gs[0, 0])
@@ -267,21 +267,21 @@ class CanteenVisualizer:
         # 设置等比例，确保地图不变形
         self.ax_map.set_aspect('equal', adjustable='box')
 
-        # 子图2：排队人数曲线（右上）
-        self.ax_stats = self.fig.add_subplot(gs[0, 1])
+        # 子图2：排队人数曲线（右上，跨2行）
+        self.ax_stats = self.fig.add_subplot(gs[0:2, 1])
         self.ax_stats.set_xlabel('仿真周期', fontsize=9)
         self.ax_stats.set_ylabel('排队人数', fontsize=9)
         self.ax_stats.set_title('排队人数变化曲线', fontsize=11, fontweight='bold')
         self.ax_stats.grid(True, linestyle='--', alpha=0.3, color=self.colors['grid'])
         self.ax_stats.set_facecolor('#FFFFFF')
 
-        # 子图3：学生状态分布饼图（右下）
-        self.ax_pie = self.fig.add_subplot(gs[1, 1])
+        # 子图3：学生状态分布饼图（中左）
+        self.ax_pie = self.fig.add_subplot(gs[1, 0])
         self.ax_pie.set_title('学生状态分布', fontsize=11, fontweight='bold')
         self.ax_pie.set_facecolor('#FFFFFF')
 
-        # 子图4：信息面板（左下）
-        ax_info = self.fig.add_subplot(gs[1, 0])
+        # 子图4：信息面板（中右下方 — 仿真信息 + 食堂排队情况）
+        ax_info = self.fig.add_subplot(gs[2, 0])
         ax_info.axis('off')  # 不显示坐标轴
 
         # 添加信息文本（初始占位）
@@ -289,6 +289,14 @@ class CanteenVisualizer:
                                      transform=ax_info.transAxes,
                                      fontsize=10, verticalalignment='top',
                                      color=self.colors['text'])
+
+        # 子图5：食堂排队详情文字（右下角）
+        self.ax_canteen = self.fig.add_subplot(gs[2, 1])
+        self.ax_canteen.axis('off')
+        self.canteen_text = self.ax_canteen.text(0.05, 0.95, '',
+                                                  transform=self.ax_canteen.transAxes,
+                                                  fontsize=9, verticalalignment='top',
+                                                  color=self.colors['text'])
 
         # 添加图例（在地图子图上）
         self._add_legend()
@@ -719,21 +727,23 @@ class CanteenVisualizer:
             f"动画状态: {'暂停' if self.is_paused else '运行'}",
         ]
 
-        # 添加食堂详细信息（≤7 全显示，>7 显示前7个+省略提示）
-        info_lines.append("\n食堂排队情况:")
-        max_show = 7
+        # 更新左侧信息面板
+        info_text = "\n".join(info_lines)
+        self.info_text.set_text(info_text)
+
+        # 更新右下角食堂排队详情
+        max_show = 6
+        canteen_lines = ["-- 食堂排队详情 --"]
         for i, canteen in enumerate(canteens[:max_show]):
             queue_len = canteen.get_total_queue_length()
             capacity = canteen.capacity
-            utilization = queue_len / max(capacity, 1) * 100
-            info_lines.append(f"  {canteen.name}: {queue_len}/{capacity} ({utilization:.1f}%)")
-
+            bar_len = min(int(queue_len / max(capacity, 1) * 10), 10)
+            bar = "#" * bar_len + "." * (10 - bar_len)
+            canteen_lines.append(f" {canteen.name}")
+            canteen_lines.append(f"  [{bar}] {queue_len}/{capacity}")
         if len(canteens) > max_show:
-            info_lines.append(f"  ... 还有{len(canteens) - max_show}个食堂未显示")
-
-        # 更新信息文本
-        info_text = "\n".join(info_lines)
-        self.info_text.set_text(info_text)
+            canteen_lines.append(f" ... 还有{len(canteens) - max_show}个食堂未显示")
+        self.canteen_text.set_text("\n".join(canteen_lines))
 
     def start_animation(self, update_func, interval: int = 50) -> None:
         """
