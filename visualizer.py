@@ -50,6 +50,121 @@ from typing import List, Dict, Tuple, Any, Optional
 from models import Student, Canteen, StudentState
 
 
+# ====================== 图表文字三语翻译 ======================
+_VIZ_TEXTS = {
+    "zh_CN": {
+        "window_title": "BJTU食堂就餐流量仿真",
+        "map_title": "学生移动与食堂分布",
+        "xlabel": "X坐标 (米)",
+        "ylabel": "Y坐标 (米)",
+        "stats_title": "排队人数变化曲线",
+        "stats_xlabel": "仿真周期",
+        "stats_ylabel": "排队人数",
+        "pie_title": "学生状态分布",
+        "pie_total": "总数",
+        "info_loading": "仿真信息加载中...",
+        "info_tick": "仿真周期",
+        "info_students": "学生总数",
+        "info_walking": "行走",
+        "info_queuing": "排队",
+        "info_eating": "用餐",
+        "info_leaving": "离开",
+        "info_canteens": "食堂数量",
+        "info_queue": "总排队人数",
+        "info_speed": "动画速度",
+        "info_status": "动画状态",
+        "info_running": "运行",
+        "info_paused": "暂停",
+        "canteen_header": "-- 食堂排队详情 --",
+        "canteen_remaining": "还有{count}个食堂未显示",
+        "legend_walking": "行走",
+        "legend_queuing": "排队",
+        "legend_eating": "用餐",
+        "legend_leaving": "离开",
+        "legend_canteen": "食堂",
+        "no_students": "无学生数据",
+        "perf_mode": "性能优化模式",
+        "view_reset": "视图已重置",
+    },
+    "zh_TW": {
+        "window_title": "BJTU食堂就餐流量模擬",
+        "map_title": "學生移動與食堂分佈",
+        "xlabel": "X坐標 (米)",
+        "ylabel": "Y坐標 (米)",
+        "stats_title": "排隊人數變化曲線",
+        "stats_xlabel": "模擬週期",
+        "stats_ylabel": "排隊人數",
+        "pie_title": "學生狀態分佈",
+        "pie_total": "總數",
+        "info_loading": "模擬資訊加載中...",
+        "info_tick": "模擬週期",
+        "info_students": "學生總數",
+        "info_walking": "行走",
+        "info_queuing": "排隊",
+        "info_eating": "用餐",
+        "info_leaving": "離開",
+        "info_canteens": "食堂數量",
+        "info_queue": "總排隊人數",
+        "info_speed": "動畫速度",
+        "info_status": "動畫狀態",
+        "info_running": "運行",
+        "info_paused": "暫停",
+        "canteen_header": "-- 食堂排隊詳情 --",
+        "canteen_remaining": "還有{count}個食堂未顯示",
+        "legend_walking": "行走",
+        "legend_queuing": "排隊",
+        "legend_eating": "用餐",
+        "legend_leaving": "離開",
+        "legend_canteen": "食堂",
+        "no_students": "無學生数据",
+        "perf_mode": "效能優化模式",
+        "view_reset": "視圖已重置",
+    },
+    "en": {
+        "window_title": "BJTU Canteen Dining Simulation",
+        "map_title": "Student Movement & Canteen Distribution",
+        "xlabel": "X Coordinate (m)",
+        "ylabel": "Y Coordinate (m)",
+        "stats_title": "Queue Length Over Time",
+        "stats_xlabel": "Simulation Tick",
+        "stats_ylabel": "Queue Length",
+        "pie_title": "Student Status Distribution",
+        "pie_total": "Total",
+        "info_loading": "Loading simulation info...",
+        "info_tick": "Simulation Tick",
+        "info_students": "Total Students",
+        "info_walking": "Walking",
+        "info_queuing": "Queuing",
+        "info_eating": "Eating",
+        "info_leaving": "Leaving",
+        "info_canteens": "Canteen Count",
+        "info_queue": "Total Queue",
+        "info_speed": "Anim Speed",
+        "info_status": "Anim Status",
+        "info_running": "Running",
+        "info_paused": "Paused",
+        "canteen_header": "-- Canteen Queue Details --",
+        "canteen_remaining": "{count} more canteens not shown",
+        "legend_walking": "Walking",
+        "legend_queuing": "Queuing",
+        "legend_eating": "Eating",
+        "legend_leaving": "Leaving",
+        "legend_canteen": "Canteen",
+        "no_students": "No students",
+        "perf_mode": "Performance Mode",
+        "view_reset": "View Reset",
+    },
+}
+
+
+def _viz_t(key, lang, **kwargs):
+    """获取可视化图表文字"""
+    text = _VIZ_TEXTS.get(lang, _VIZ_TEXTS["zh_CN"]).get(key, key)
+    if kwargs:
+        text = text.format(**kwargs)
+    return text
+
+
 class CanteenVisualizer:
     """
     食堂仿真可视化器
@@ -69,13 +184,14 @@ class CanteenVisualizer:
     """
 
     def __init__(self, map_boundaries: Tuple[float, float, float, float] = (-250, -400, 450, 200),
-                 title: str = "BJTU食堂就餐流量仿真"):
+                 title: str = "BJTU食堂就餐流量仿真", lang: str = "zh_CN"):
         """
         初始化可视化器
 
         参数：
         map_boundaries: 地图边界 (x_min, y_min, x_max, y_max)
         title: 窗口标题
+        lang: 语言代码 zh_CN / zh_TW / en
 
         关键步骤：
         1. 配置Matplotlib参数（中文字体、DPI等）
@@ -87,6 +203,9 @@ class CanteenVisualizer:
         self.x_min, self.y_min, self.x_max, self.y_max = map_boundaries
         self.map_width = self.x_max - self.x_min
         self.map_height = self.y_max - self.y_min
+
+        # 语言
+        self.lang = lang
 
         # 图形状态
         self.fig = None
@@ -234,7 +353,7 @@ class CanteenVisualizer:
         """
         # 创建图形窗口
         self.fig = plt.figure(figsize=(15, 8), facecolor=self.colors['background'])
-        self.fig.suptitle(title, fontsize=16, fontweight='bold', color=self.colors['text'])
+        self.fig.suptitle(_viz_t("window_title", self.lang), fontsize=16, fontweight='bold', color=self.colors['text'])
 
         # 创建网格布局：3行2列，右下角专门放食堂排队文字
         gs = self.fig.add_gridspec(3, 2, width_ratios=[7, 3], height_ratios=[5, 3, 2],
@@ -245,9 +364,9 @@ class CanteenVisualizer:
         self.ax_map = self.fig.add_subplot(gs[0, 0])
         self.ax_map.set_xlim(self.x_min - 10, self.x_max + 10)
         self.ax_map.set_ylim(self.y_min - 10, self.y_max + 10)
-        self.ax_map.set_xlabel('X坐标 (米)', fontsize=10)
-        self.ax_map.set_ylabel('Y坐标 (米)', fontsize=10)
-        self.ax_map.set_title('学生移动与食堂分布', fontsize=12, fontweight='bold')
+        self.ax_map.set_xlabel(_viz_t("xlabel", self.lang), fontsize=10)
+        self.ax_map.set_ylabel(_viz_t("ylabel", self.lang), fontsize=10)
+        self.ax_map.set_title(_viz_t("map_title", self.lang), fontsize=12, fontweight='bold')
         self.ax_map.grid(True, linestyle='--', alpha=0.3, color=self.colors['grid'])
         self.ax_map.set_facecolor('#FFFFFF')
 
@@ -269,15 +388,15 @@ class CanteenVisualizer:
 
         # 子图2：排队人数曲线（右上，跨2行）
         self.ax_stats = self.fig.add_subplot(gs[0:2, 1])
-        self.ax_stats.set_xlabel('仿真周期', fontsize=9)
-        self.ax_stats.set_ylabel('排队人数', fontsize=9)
-        self.ax_stats.set_title('排队人数变化曲线', fontsize=11, fontweight='bold')
+        self.ax_stats.set_xlabel(_viz_t("stats_xlabel", self.lang), fontsize=9)
+        self.ax_stats.set_ylabel(_viz_t("stats_ylabel", self.lang), fontsize=9)
+        self.ax_stats.set_title(_viz_t("stats_title", self.lang), fontsize=11, fontweight='bold')
         self.ax_stats.grid(True, linestyle='--', alpha=0.3, color=self.colors['grid'])
         self.ax_stats.set_facecolor('#FFFFFF')
 
         # 子图3：学生状态分布饼图（中左）
         self.ax_pie = self.fig.add_subplot(gs[1, 0])
-        self.ax_pie.set_title('学生状态分布', fontsize=11, fontweight='bold')
+        self.ax_pie.set_title(_viz_t("pie_title", self.lang), fontsize=11, fontweight='bold')
         self.ax_pie.set_facecolor('#FFFFFF')
 
         # 子图4：信息面板（中右下方 — 仿真信息 + 食堂排队情况）
@@ -285,7 +404,7 @@ class CanteenVisualizer:
         ax_info.axis('off')  # 不显示坐标轴
 
         # 添加信息文本（初始占位）
-        self.info_text = ax_info.text(0.05, 0.95, '仿真信息加载中...',
+        self.info_text = ax_info.text(0.05, 0.95, _viz_t("info_loading", self.lang),
                                      transform=ax_info.transAxes,
                                      fontsize=10, verticalalignment='top',
                                      color=self.colors['text'])
@@ -315,19 +434,19 @@ class CanteenVisualizer:
         legend_elements = [
             plt.Line2D([0], [0], marker='o', color='w',
                       markerfacecolor=self.colors['student_walking'],
-                      markersize=8, label='行走'),
+                      markersize=8, label=_viz_t("legend_walking", self.lang)),
             plt.Line2D([0], [0], marker='o', color='w',
                       markerfacecolor=self.colors['student_queuing'],
-                      markersize=8, label='排队'),
+                      markersize=8, label=_viz_t("legend_queuing", self.lang)),
             plt.Line2D([0], [0], marker='o', color='w',
                       markerfacecolor=self.colors['student_eating'],
-                      markersize=8, label='用餐'),
+                      markersize=8, label=_viz_t("legend_eating", self.lang)),
             plt.Line2D([0], [0], marker='o', color='w',
                       markerfacecolor=self.colors['student_leaving'],
-                      markersize=8, label='离开'),
+                      markersize=8, label=_viz_t("legend_leaving", self.lang)),
             plt.Line2D([0], [0], marker='s', color='w',
                       markerfacecolor=self.colors['canteen'],
-                      markersize=10, label='食堂'),
+                      markersize=10, label=_viz_t("legend_canteen", self.lang)),
         ]
 
         # 添加图例
@@ -358,33 +477,29 @@ class CanteenVisualizer:
         if event.key == ' ':
             # 空格键：暂停/继续
             self.is_paused = not self.is_paused
-            status = "暂停" if self.is_paused else "继续"
-            print(f"动画{status}")
-            self._update_info_text(f"动画状态: {status}")
+            status = _viz_t("info_paused", self.lang) if self.is_paused else _viz_t("info_running", self.lang)
+            self._update_info_text(f"{_viz_t('info_status', self.lang)}: {status}")
 
         elif event.key == 'up':
             # 上箭头：加快速度
             self.animation_speed = max(10, self.animation_speed - 10)
             if self.animation:
                 self.animation.event_source.interval = self.animation_speed
-            print(f"动画速度: {self.animation_speed}ms")
-            self._update_info_text(f"动画速度: {self.animation_speed}ms")
+            self._update_info_text(f"{_viz_t('info_speed', self.lang)}: {self.animation_speed}ms")
 
         elif event.key == 'down':
             # 下箭头：减慢速度
             self.animation_speed = min(500, self.animation_speed + 10)
             if self.animation:
                 self.animation.event_source.interval = self.animation_speed
-            print(f"动画速度: {self.animation_speed}ms")
-            self._update_info_text(f"动画速度: {self.animation_speed}ms")
+            self._update_info_text(f"{_viz_t('info_speed', self.lang)}: {self.animation_speed}ms")
 
         elif event.key == 'r':
             # R键：重置视图
             self.ax_map.set_xlim(self.x_min - 10, self.x_max + 10)
             self.ax_map.set_ylim(self.y_min - 10, self.y_max + 10)
             self.fig.canvas.draw_idle()
-            print("视图已重置")
-            self._update_info_text("视图已重置")
+            self._update_info_text(_viz_t("view_reset", self.lang))
 
     def _on_mouse_click(self, event):
         """鼠标点击事件处理"""
@@ -589,7 +704,7 @@ class CanteenVisualizer:
 
         # 性能提示（当学生数量多时）
         if len(students) > 500:
-            self.ax_map.set_title(f'学生移动与食堂分布 ({len(students)}名学生 - 性能优化模式)',
+            self.ax_map.set_title(f"{_viz_t('map_title', self.lang)} ({len(students)} {_viz_t('info_students', self.lang)} - {_viz_t('perf_mode', self.lang)})",
                                  fontsize=12, fontweight='bold')
 
     def _update_statistics(self, tick: int, students: List[Student], canteens: List[Canteen]) -> None:
@@ -619,9 +734,9 @@ class CanteenVisualizer:
                           color=self.colors['stat_line'], linewidth=2)
         self.ax_stats.fill_between(self.tick_history, 0, self.queue_history,
                                   color=self.colors['stat_line'], alpha=0.3)
-        self.ax_stats.set_xlabel('仿真周期', fontsize=9)
-        self.ax_stats.set_ylabel('排队人数', fontsize=9)
-        self.ax_stats.set_title(f'排队人数变化曲线 (当前: {total_queue}人)', fontsize=11, fontweight='bold')
+        self.ax_stats.set_xlabel(_viz_t("stats_xlabel", self.lang), fontsize=9)
+        self.ax_stats.set_ylabel(_viz_t("stats_ylabel", self.lang), fontsize=9)
+        self.ax_stats.set_title(f"{_viz_t('stats_title', self.lang)} ({_viz_t('info_queue', self.lang)}: {total_queue})", fontsize=11, fontweight='bold')
         self.ax_stats.grid(True, linestyle='--', alpha=0.3, color=self.colors['grid'])
         self.ax_stats.set_facecolor('#FFFFFF')
 
@@ -640,22 +755,28 @@ class CanteenVisualizer:
         显示各状态学生的比例，使用对应颜色。
         """
         # 统计各状态学生数量
+        lang = self.lang
         state_counts = {
-            '行走': 0,
-            '排队': 0,
-            '用餐': 0,
-            '离开': 0,
+            _viz_t("info_walking", lang): 0,
+            _viz_t("info_queuing", lang): 0,
+            _viz_t("info_eating", lang): 0,
+            _viz_t("info_leaving", lang): 0,
         }
+
+        walking_key = _viz_t("info_walking", lang)
+        queuing_key = _viz_t("info_queuing", lang)
+        eating_key = _viz_t("info_eating", lang)
+        leaving_key = _viz_t("info_leaving", lang)
 
         for student in students:
             if student.state == StudentState.WALKING:
-                state_counts['行走'] += 1
+                state_counts[walking_key] += 1
             elif student.state == StudentState.QUEUING:
-                state_counts['排队'] += 1
+                state_counts[queuing_key] += 1
             elif student.state == StudentState.EATING:
-                state_counts['用餐'] += 1
+                state_counts[eating_key] += 1
             elif student.state == StudentState.LEAVING:
-                state_counts['离开'] += 1
+                state_counts[leaving_key] += 1
 
         # 过滤掉数量为0的状态
         labels = []
@@ -668,13 +789,13 @@ class CanteenVisualizer:
                 sizes.append(count)
 
                 # 根据状态选择颜色
-                if label == '行走':
+                if label == walking_key:
                     colors.append(self.colors['student_walking'])
-                elif label == '排队':
+                elif label == queuing_key:
                     colors.append(self.colors['student_queuing'])
-                elif label == '用餐':
+                elif label == eating_key:
                     colors.append(self.colors['student_eating'])
-                elif label == '离开':
+                elif label == leaving_key:
                     colors.append(self.colors['student_leaving'])
 
         # 更新饼图
@@ -683,10 +804,10 @@ class CanteenVisualizer:
             self.ax_pie.pie(sizes, labels=labels, colors=colors,
                            autopct='%1.1f%%', startangle=90,
                            textprops={'fontsize': 9})
-            self.ax_pie.set_title(f'学生状态分布 (总数: {len(students)})',
+            self.ax_pie.set_title(f"{_viz_t('pie_title', self.lang)} ({_viz_t('pie_total', self.lang)}: {len(students)})",
                                  fontsize=11, fontweight='bold')
         else:
-            self.ax_pie.text(0.5, 0.5, '无学生数据',
+            self.ax_pie.text(0.5, 0.5, _viz_t("no_students", self.lang),
                             ha='center', va='center',
                             fontsize=12, color=self.colors['text'])
 
@@ -713,18 +834,20 @@ class CanteenVisualizer:
         eating_count = sum(1 for s in students if s.state == StudentState.EATING)
         leaving_count = sum(1 for s in students if s.state == StudentState.LEAVING)
 
+        lang = self.lang
         # 构建信息文本
+        pct = lambda n: n / total_students * 100 if total_students > 0 else 0
         info_lines = [
-            f"仿真周期: {tick}",
-            f"学生总数: {total_students}",
-            f"  行走: {walking_count} ({walking_count/total_students*100:.1f}%)",
-            f"  排队: {queuing_count} ({queuing_count/total_students*100:.1f}%)",
-            f"  用餐: {eating_count} ({eating_count/total_students*100:.1f}%)",
-            f"  离开: {leaving_count} ({leaving_count/total_students*100:.1f}%)",
-            f"食堂数量: {canteen_count}",
-            f"总排队人数: {total_queue}",
-            f"动画速度: {self.animation_speed}ms",
-            f"动画状态: {'暂停' if self.is_paused else '运行'}",
+            f"{_viz_t('info_tick', lang)}: {tick}",
+            f"{_viz_t('info_students', lang)}: {total_students}",
+            f"  {_viz_t('info_walking', lang)}: {walking_count} ({pct(walking_count):.1f}%)",
+            f"  {_viz_t('info_queuing', lang)}: {queuing_count} ({pct(queuing_count):.1f}%)",
+            f"  {_viz_t('info_eating', lang)}: {eating_count} ({pct(eating_count):.1f}%)",
+            f"  {_viz_t('info_leaving', lang)}: {leaving_count} ({pct(leaving_count):.1f}%)",
+            f"{_viz_t('info_canteens', lang)}: {canteen_count}",
+            f"{_viz_t('info_queue', lang)}: {total_queue}",
+            f"{_viz_t('info_speed', lang)}: {self.animation_speed}ms",
+            f"{_viz_t('info_status', lang)}: {_viz_t('info_paused', lang) if self.is_paused else _viz_t('info_running', lang)}",
         ]
 
         # 更新左侧信息面板
@@ -733,7 +856,7 @@ class CanteenVisualizer:
 
         # 更新右下角食堂排队详情
         max_show = 6
-        canteen_lines = ["-- 食堂排队详情 --"]
+        canteen_lines = [_viz_t("canteen_header", lang)]
         for i, canteen in enumerate(canteens[:max_show]):
             queue_len = canteen.get_total_queue_length()
             capacity = canteen.capacity
@@ -742,7 +865,7 @@ class CanteenVisualizer:
             canteen_lines.append(f" {canteen.name}")
             canteen_lines.append(f"  [{bar}] {queue_len}/{capacity}")
         if len(canteens) > max_show:
-            canteen_lines.append(f" ... 还有{len(canteens) - max_show}个食堂未显示")
+            canteen_lines.append(" " + _viz_t("canteen_remaining", lang, count=len(canteens) - max_show))
         self.canteen_text.set_text("\n".join(canteen_lines))
 
     def start_animation(self, update_func, interval: int = 50) -> None:
@@ -770,8 +893,7 @@ class CanteenVisualizer:
         # 设置动画速度
         self.animation_speed = interval
 
-        print(f"动画已启动，间隔: {interval}ms")
-        self._update_info_text(f"动画已启动，间隔: {interval}ms")
+        self._update_info_text(f"{_viz_t('info_speed', self.lang)}: {interval}ms")
 
     def show(self) -> None:
         """显示图形窗口（阻塞模式）"""

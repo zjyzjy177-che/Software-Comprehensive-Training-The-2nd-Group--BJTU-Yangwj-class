@@ -371,7 +371,8 @@ def initialize_visualization(config: Dict[str, Any]):
     try:
         from visualizer import CanteenVisualizer
         map_boundaries = config.get('map_boundaries', (-250, -400, 450, 200))
-        visualizer = CanteenVisualizer(map_boundaries=tuple(map_boundaries))
+        lang = config.get('lang', 'zh_CN')
+        visualizer = CanteenVisualizer(map_boundaries=tuple(map_boundaries), lang=lang)
         print("可视化模块初始化完成")
         return visualizer
     except ImportError:

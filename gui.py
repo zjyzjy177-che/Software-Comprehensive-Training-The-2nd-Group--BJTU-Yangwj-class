@@ -166,6 +166,9 @@ LANG_TEXTS = {
         "viz_status": "动画状态: {status}",
         "viz_speed": "动画速度: {speed}ms",
         "viz_reset": "视图已重置",
+        "limit_warn_title": "参数上限警告",
+        "limit_warn_msg": "以下参数超过建议上限，可能导致卡顿或崩溃：",
+        "limit_warn_confirm": "确定要继续吗？",
     },
     "zh_TW": {
         "window_title": "BJTU 食堂就餐流量模擬系統",
@@ -271,6 +274,9 @@ LANG_TEXTS = {
         "viz_status": "動畫狀態: {status}",
         "viz_speed": "動畫速度: {speed}ms",
         "viz_reset": "視圖已重置",
+        "limit_warn_title": "參數上限警告",
+        "limit_warn_msg": "以下參數超過建議上限，可能導致卡頓或崩潰：",
+        "limit_warn_confirm": "確定要繼續嗎？",
     },
     "en": {
         "window_title": "BJTU Canteen Dining Flow Simulation System",
@@ -376,6 +382,9 @@ LANG_TEXTS = {
         "viz_status": "Animation Status: {status}",
         "viz_speed": "Animation Speed: {speed}ms",
         "viz_reset": "View Reset",
+        "limit_warn_title": "Parameter Limit Warning",
+        "limit_warn_msg": "The following parameters exceed recommended limits and may cause lag or crash:",
+        "limit_warn_confirm": "Continue anyway?",
     },
 }
 
@@ -442,23 +451,31 @@ def validate_password(password):
 
 # ====================== ToolTip 悬停提示 ======================
 class ToolTip:
-    """鼠标悬停时在 ? 图标旁弹出参数说明"""
+    """鼠标悬停时在 ? 图标旁弹出参数说明，text 可为可调用对象以支持语言切换"""
     def __init__(self, widget, text):
         self.widget = widget
-        self.text = text
+        self._text = text
         self.tip_window = None
         widget.bind("<Enter>", self._show)
         widget.bind("<Leave>", self._hide)
 
+    def _get_text(self):
+        if callable(self._text):
+            return self._text()
+        return self._text
+
     def _show(self, event=None):
-        if self.tip_window or not self.text:
+        if self.tip_window:
+            return
+        text = self._get_text()
+        if not text:
             return
         x = self.widget.winfo_rootx() + 20
         y = self.widget.winfo_rooty() + 20
         self.tip_window = tw = tk.Toplevel(self.widget)
         tw.wm_overrideredirect(True)
         tw.wm_geometry(f"+{x}+{y}")
-        label = tk.Label(tw, text=self.text, justify="left",
+        label = tk.Label(tw, text=text, justify="left",
                          background="#ffffcc", foreground="#333333",
                          font=(SYSTEM_FONT, 9), relief="solid", borderwidth=1,
                          padx=8, pady=4, wraplength=320)
@@ -470,51 +487,62 @@ class ToolTip:
             self.tip_window = None
 
 
-# ====================== 参数提示文本 ======================
+# ====================== 参数提示文本（三语） ======================
 _PARAM_TOOLTIPS = {
-    "ticks": "仿真时长（周期数）\n"
-            "• 一个 tick 模拟若干秒\n"
-            "• 建议范围：50-1000\n"
-            "• ⚠ 超过 5000 可能明显卡顿",
-    "students": "初始学生数量\n"
-               "• 影响排队压力和运算量\n"
-               "• 建议范围：10-500\n"
-               "• ⚠ 超过 2000 可能卡顿（取决于电脑性能）",
-    "canteens": "食堂数量\n"
-               "• 每个食堂有独立窗口和容量\n"
-               "• 建议范围：1-7\n"
-               "• ⚠ 超过 10 个食堂动画信息面板会截断显示",
-    "spawn": "学生生成速率（0-1）\n"
-            "• 每个 tick 生成新学生的概率\n"
-            "• 建议范围：0.01-0.3\n"
-            "• 0 = 不生成新学生，仅用初始学生",
-    "strategy": "食堂选择策略\n"
-               "• distance：优先选最近食堂\n"
-               "• queue：优先选排队最短食堂\n"
-               "• balanced：综合距离和排队人数",
-    "alpha": "距离权重（α）\n"
-            "• 值越大 → 学生越倾向去近的食堂\n"
-            "• 建议：高峰时段设 0.3，平峰 0.8",
-    "beta": "排队人数权重（β）\n"
-           "• 值越大 → 学生越倾向去人少的食堂\n"
-           "• 建议：高峰时段设 0.7，平峰 0.2",
-    "viz": "启用后弹出 Matplotlib 动画窗口\n"
-          "• 实时显示学生移动和食堂排队\n"
-          "• 注意：学生数 > 500 时动画可能卡顿\n"
-          "• 按空格暂停，↑↓ 调速，R 重置视图",
+    "zh_CN": {
+        "ticks": "仿真时长（周期数）\n• 一个 tick 模拟若干秒\n• 建议范围：50-1000\n• ⚠ 超过 5000 可能明显卡顿",
+        "students": "初始学生数量\n• 影响排队压力和运算量\n• 建议范围：10-500\n• ⚠ 超过 2000 可能卡顿（取决于电脑性能）",
+        "canteens": "食堂数量\n• 每个食堂有独立窗口和容量\n• 建议范围：1-6\n• ⚠ 超过 10 个食堂动画信息面板会截断显示",
+        "spawn": "学生生成速率（0-1）\n• 每个 tick 生成新学生的概率\n• 建议范围：0.01-0.3\n• 0 = 不生成新学生，仅用初始学生",
+        "strategy": "食堂选择策略\n• distance：优先选最近食堂\n• queue：优先选排队最短食堂\n• balanced：综合距离和排队人数",
+        "alpha": "距离权重（α）\n• 值越大 → 学生越倾向去近的食堂\n• 建议：高峰 0.3，平峰 0.8",
+        "beta": "排队人数权重（β）\n• 值越大 → 学生越倾向去人少的食堂\n• 建议：高峰 0.7，平峰 0.2",
+        "viz": "启用后弹出 Matplotlib 动画窗口\n• 实时显示学生移动和食堂排队\n• 注意：学生数 > 500 时动画可能卡顿\n• 空格暂停，↑↓ 调速，R 重置视图",
+    },
+    "zh_TW": {
+        "ticks": "模擬時長（週期數）\n• 一個 tick 模擬若干秒\n• 建議範圍：50-1000\n• ⚠ 超過 5000 可能明顯卡頓",
+        "students": "初始學生數量\n• 影響排隊壓力和運算量\n• 建議範圍：10-500\n• ⚠ 超過 2000 可能卡頓（取決於電腦性能）",
+        "canteens": "食堂數量\n• 每個食堂有獨立窗口和容量\n• 建議範圍：1-6\n• ⚠ 超過 10 個食堂動畫資訊面板會截斷顯示",
+        "spawn": "學生生成速率（0-1）\n• 每個 tick 生成新學生的機率\n• 建議範圍：0.01-0.3\n• 0 = 不生成新學生，僅用初始學生",
+        "strategy": "食堂選擇策略\n• distance：優先選最近食堂\n• queue：優先選排隊最短食堂\n• balanced：綜合距離和排隊人數",
+        "alpha": "距離權重（α）\n• 值越大 → 學生越傾向去近的食堂\n• 建議：高峰 0.3，平峰 0.8",
+        "beta": "排隊人數權重（β）\n• 值越大 → 學生越傾向去人少的食堂\n• 建議：高峰 0.7，平峰 0.2",
+        "viz": "啟用後彈出 Matplotlib 動畫窗口\n• 即時顯示學生移動和食堂排隊\n• 注意：學生數 > 500 時動畫可能卡頓\n• 空格暫停，↑↓ 調速，R 重置視圖",
+    },
+    "en": {
+        "ticks": "Simulation duration (ticks)\n• One tick ≈ several seconds\n• Suggested: 50-1000\n• ⚠ > 5000 may cause lag",
+        "students": "Initial student count\n• Affects queue pressure & computation\n• Suggested: 10-500\n• ⚠ > 2000 may cause lag",
+        "canteens": "Number of canteens\n• Each has independent windows & capacity\n• Suggested: 1-6\n• ⚠ > 10 will truncate info panel",
+        "spawn": "Student spawn rate (0-1)\n• Probability of new student per tick\n• Suggested: 0.01-0.3\n• 0 = no new students, initial only",
+        "strategy": "Canteen selection strategy\n• distance: prefer nearest canteen\n• queue: prefer shortest queue\n• balanced: combine distance & queue",
+        "alpha": "Distance weight (α)\n• Higher → students go to nearer canteen\n• Suggest: peak hours 0.3, off-peak 0.8",
+        "beta": "Queue weight (β)\n• Higher → students avoid crowded canteens\n• Suggest: peak hours 0.7, off-peak 0.2",
+        "viz": "Enable Matplotlib animation window\n• Real-time student movement & queues\n• Note: > 500 students may lag\n• Space=pause, ↑↓=speed, R=reset",
+    },
 }
 
-# 参数上限建议（点击启动时若超过会弹确认框）
-_PARAM_LIMITS = {
-    "ticks": 5000,
-    "students": 2000,
-    "canteens": 15,
-    "spawn": 1.0,
-}
+def _get_tooltip(key, lang):
+    """获取指定语言的 ToolTip 文本"""
+    return _PARAM_TOOLTIPS.get(lang, _PARAM_TOOLTIPS["zh_CN"]).get(key, "")
+
+# 参数上限建议
+_PARAM_LIMITS = {"ticks": 5000, "students": 2000, "canteens": 15, "spawn": 1.0}
 _PARAM_LIMIT_WARNINGS = {
-    "ticks": "ticks 超过 5000 可能导致仿真运行缓慢或卡顿",
-    "students": "学生数超过 2000 可能导致仿真和动画严重卡顿",
-    "canteens": "食堂数超过 15 个，信息面板可能显示不全",
+    "zh_CN": {
+        "ticks": "ticks 超过 5000 可能导致仿真运行缓慢或卡顿",
+        "students": "学生数超过 2000 可能导致仿真和动画严重卡顿",
+        "canteens": "食堂数超过 15 个，信息面板可能显示不全",
+    },
+    "zh_TW": {
+        "ticks": "ticks 超過 5000 可能導致模擬運行緩慢或卡頓",
+        "students": "學生數超過 2000 可能導致模擬和動畫嚴重卡頓",
+        "canteens": "食堂數超過 15 個，資訊面板可能顯示不全",
+    },
+    "en": {
+        "ticks": "ticks > 5000 may cause slow simulation or lag",
+        "students": "Students > 2000 may cause severe simulation/animation lag",
+        "canteens": "Canteens > 15 may overflow the info panel",
+    },
 }
 
 
@@ -883,12 +911,13 @@ class BJTUSimulationGUI:
             lbl.grid(row=i, column=0, padx=(5, 0), pady=6, sticky="e")
             self._config_param_labels.append((lbl, tkey))
             # ? 信息图标
-            tip_text = _PARAM_TOOLTIPS.get(tip_key, "")
             tip_icon = tk.Label(self.lf_params, text="?", font=(SYSTEM_FONT, 9, "bold"),
                                 bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow",
                                 width=2, relief="flat")
             tip_icon.grid(row=i, column=1, padx=(0, 3), pady=6, sticky="w")
-            ToolTip(tip_icon, tip_text)
+            # 用 lambda 延迟获取，语言切换时自动更新
+            _tk = tip_key
+            ToolTip(tip_icon, lambda k=_tk: _get_tooltip(k, self.lang))
             entry = tk.Entry(self.lf_params, font=(SYSTEM_FONT, 11), width=12, relief="solid", bd=1)
             entry.insert(0, default)
             entry.grid(row=i, column=2, padx=(0, 5), pady=6, sticky="w")
@@ -905,7 +934,7 @@ class BJTUSimulationGUI:
         tip_strat = tk.Label(self.lf_strategy, text="?", font=(SYSTEM_FONT, 9, "bold"),
                              bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow", width=2)
         tip_strat.grid(row=0, column=1, padx=(0, 3), pady=6, sticky="w")
-        ToolTip(tip_strat, _PARAM_TOOLTIPS["strategy"])
+        ToolTip(tip_strat, lambda: _get_tooltip("strategy", self.lang))
         self.strategy_var = tk.StringVar(value="balanced")
         ttk.Combobox(self.lf_strategy, textvariable=self.strategy_var,
                      values=["distance", "queue", "balanced"],
@@ -924,7 +953,7 @@ class BJTUSimulationGUI:
         tip_a = tk.Label(self.lf_weight, text="?", font=(SYSTEM_FONT, 9, "bold"),
                          bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow", width=2)
         tip_a.grid(row=0, column=1, padx=(0, 3), pady=6, sticky="w")
-        ToolTip(tip_a, _PARAM_TOOLTIPS["alpha"])
+        ToolTip(tip_a, lambda: _get_tooltip("alpha", self.lang))
         self.alpha_var = tk.DoubleVar(value=0.5)
         alpha_slider = tk.Scale(self.lf_weight, from_=0.0, to=1.0, resolution=0.1,
                                 variable=self.alpha_var, orient="horizontal", length=160,
@@ -940,7 +969,7 @@ class BJTUSimulationGUI:
         tip_b = tk.Label(self.lf_weight, text="?", font=(SYSTEM_FONT, 9, "bold"),
                          bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow", width=2)
         tip_b.grid(row=1, column=1, padx=(0, 3), pady=6, sticky="w")
-        ToolTip(tip_b, _PARAM_TOOLTIPS["beta"])
+        ToolTip(tip_b, lambda: _get_tooltip("beta", self.lang))
         self.beta_var = tk.DoubleVar(value=0.5)
         beta_slider = tk.Scale(self.lf_weight, from_=0.0, to=1.0, resolution=0.1,
                                variable=self.beta_var, orient="horizontal", length=160,
@@ -964,7 +993,7 @@ class BJTUSimulationGUI:
         tip_viz = tk.Label(self.lf_other, text="?", font=(SYSTEM_FONT, 9, "bold"),
                            bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow", width=2)
         tip_viz.grid(row=0, column=1, padx=(0, 5), pady=5, sticky="w")
-        ToolTip(tip_viz, _PARAM_TOOLTIPS["viz"])
+        ToolTip(tip_viz, lambda: _get_tooltip("viz", self.lang))
 
         self.config_path_var = tk.StringVar()
         self.btn_browse = self._make_btn(self.lf_other, self.t("browse_config"),
@@ -1336,17 +1365,18 @@ class BJTUSimulationGUI:
         ticks_val = int(self.entry_ticks.get())
         students_val = int(self.entry_students.get())
         canteens_val = int(self.entry_canteens.get())
+        lang = self.lang
         if ticks_val > _PARAM_LIMITS["ticks"]:
-            limit_warnings.append(_PARAM_LIMIT_WARNINGS["ticks"])
+            limit_warnings.append(_PARAM_LIMIT_WARNINGS.get(lang, _PARAM_LIMIT_WARNINGS["zh_CN"])["ticks"])
         if students_val > _PARAM_LIMITS["students"]:
-            limit_warnings.append(_PARAM_LIMIT_WARNINGS["students"])
+            limit_warnings.append(_PARAM_LIMIT_WARNINGS.get(lang, _PARAM_LIMIT_WARNINGS["zh_CN"])["students"])
         if canteens_val > _PARAM_LIMITS["canteens"]:
-            limit_warnings.append(_PARAM_LIMIT_WARNINGS["canteens"])
+            limit_warnings.append(_PARAM_LIMIT_WARNINGS.get(lang, _PARAM_LIMIT_WARNINGS["zh_CN"])["canteens"])
         if limit_warnings:
-            msg = "以下参数超过建议上限，可能导致卡顿或崩溃：\n\n"
+            msg = self.t("limit_warn_msg") + "\n\n"
             msg += "\n".join(f"  • {w}" for w in limit_warnings)
-            msg += "\n\n确定要继续吗？"
-            if not messagebox.askyesno("参数上限警告", msg):
+            msg += "\n\n" + self.t("limit_warn_confirm")
+            if not messagebox.askyesno(self.t("limit_warn_title"), msg):
                 return
 
         config_dict = {
