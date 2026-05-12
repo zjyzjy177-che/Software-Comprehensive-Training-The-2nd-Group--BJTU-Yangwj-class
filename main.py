@@ -346,6 +346,7 @@ def create_config_from_gui(gui_config: Dict[str, Any]) -> Dict[str, Any]:
     config_obj.simulation_params['canteen_count'] = canteen_count
     config_obj.simulation_params['spawn_rate'] = spawn_rate
     config_obj.simulation_params['enable_visualization'] = gui_config.get('enable_visualization', False)
+    config_obj.simulation_params['lang'] = gui_config.get('lang', 'zh_CN')
 
     if 'random_seed' in gui_config:
         config_obj.simulation_params['random_seed'] = gui_config['random_seed']

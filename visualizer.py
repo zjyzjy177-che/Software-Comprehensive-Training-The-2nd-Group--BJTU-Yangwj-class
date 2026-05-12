@@ -352,13 +352,13 @@ class CanteenVisualizer:
           下方：学生状态分布饼图
         """
         # 创建图形窗口
-        self.fig = plt.figure(figsize=(15, 8), facecolor=self.colors['background'])
+        self.fig = plt.figure(figsize=(14, 8), facecolor=self.colors['background'])
         self.fig.suptitle(_viz_t("window_title", self.lang), fontsize=16, fontweight='bold', color=self.colors['text'])
 
-        # 创建网格布局：3行2列，右下角专门放食堂排队文字
-        gs = self.fig.add_gridspec(3, 2, width_ratios=[7, 3], height_ratios=[5, 3, 2],
+        # 创建网格布局：2×2 经典布局
+        gs = self.fig.add_gridspec(2, 2, width_ratios=[7, 3], height_ratios=[7, 3],
                                   left=0.05, right=0.95, top=0.9, bottom=0.1,
-                                  wspace=0.15, hspace=0.25)
+                                  wspace=0.15, hspace=0.2)
 
         # 子图1：2D地图（左上，占大部分空间）
         self.ax_map = self.fig.add_subplot(gs[0, 0])
@@ -386,36 +386,35 @@ class CanteenVisualizer:
         # 设置等比例，确保地图不变形
         self.ax_map.set_aspect('equal', adjustable='box')
 
-        # 子图2：排队人数曲线（右上，跨2行）
-        self.ax_stats = self.fig.add_subplot(gs[0:2, 1])
+        # 子图2：排队人数曲线（右上）
+        self.ax_stats = self.fig.add_subplot(gs[0, 1])
         self.ax_stats.set_xlabel(_viz_t("stats_xlabel", self.lang), fontsize=9)
         self.ax_stats.set_ylabel(_viz_t("stats_ylabel", self.lang), fontsize=9)
         self.ax_stats.set_title(_viz_t("stats_title", self.lang), fontsize=11, fontweight='bold')
         self.ax_stats.grid(True, linestyle='--', alpha=0.3, color=self.colors['grid'])
         self.ax_stats.set_facecolor('#FFFFFF')
 
-        # 子图3：学生状态分布饼图（中左）
-        self.ax_pie = self.fig.add_subplot(gs[1, 0])
+        # 子图3：学生状态分布饼图（右下）
+        self.ax_pie = self.fig.add_subplot(gs[1, 1])
         self.ax_pie.set_title(_viz_t("pie_title", self.lang), fontsize=11, fontweight='bold')
         self.ax_pie.set_facecolor('#FFFFFF')
 
-        # 子图4：信息面板（中右下方 — 仿真信息 + 食堂排队情况）
-        ax_info = self.fig.add_subplot(gs[2, 0])
-        ax_info.axis('off')  # 不显示坐标轴
+        # 子图4：信息面板（左下 — 仿真数据 + 食堂排队详情）
+        ax_info = self.fig.add_subplot(gs[1, 0])
+        ax_info.axis('off')
 
-        # 添加信息文本（初始占位）
-        self.info_text = ax_info.text(0.05, 0.95, _viz_t("info_loading", self.lang),
+        # 上半部分：仿真信息
+        self.info_text = ax_info.text(0.02, 0.98, _viz_t("info_loading", self.lang),
                                      transform=ax_info.transAxes,
-                                     fontsize=10, verticalalignment='top',
+                                     fontsize=8, verticalalignment='top',
                                      color=self.colors['text'])
+        # 下半部分：食堂排队详情（紧凑格式）
+        self.canteen_text = ax_info.text(0.02, 0.42, '',
+                                         transform=ax_info.transAxes,
+                                         fontsize=7.5, verticalalignment='top',
+                                         color=self.colors['text'])
 
-        # 子图5：食堂排队详情文字（右下角）
-        self.ax_canteen = self.fig.add_subplot(gs[2, 1])
-        self.ax_canteen.axis('off')
-        self.canteen_text = self.ax_canteen.text(0.05, 0.95, '',
-                                                  transform=self.ax_canteen.transAxes,
-                                                  fontsize=9, verticalalignment='top',
-                                                  color=self.colors['text'])
+        self.ax_canteen = ax_info  # 兼容旧引用
 
         # 添加图例（在地图子图上）
         self._add_legend()
