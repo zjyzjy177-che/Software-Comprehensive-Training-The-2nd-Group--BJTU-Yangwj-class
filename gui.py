@@ -64,7 +64,7 @@ HQ_URL = "https://hq.bjtu.edu.cn/index.htm"
 _ADMINS = {
     "24281213": {"name": "张建宇", "key": "admin1c", "role": "主管理员"},
     "24281210": {"name": "岳思铭", "key": "admin2y", "role": "管理员"},
-    "24251293": {"name": "魏嘉欣", "key": "admin3w", "role": "管理员"},
+    "24251293": {"name": "魏嘉昕", "key": "admin3w", "role": "管理员"},
 }
 
 # ====================== 多语言翻译表 ======================
