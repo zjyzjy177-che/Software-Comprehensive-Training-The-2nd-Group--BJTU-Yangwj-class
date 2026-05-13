@@ -895,17 +895,22 @@ class BJTUSimulationGUI:
         self.config_frame = tk.Frame(self.root, bg=self.BG)
 
         canvas = tk.Canvas(self.config_frame, bg=self.BG, highlightthickness=0)
-        scrollbar = tk.Scrollbar(self.config_frame, orient="vertical", command=canvas.yview)
+        v_scroll = tk.Scrollbar(self.config_frame, orient="vertical", command=canvas.yview)
+        h_scroll = tk.Scrollbar(self.config_frame, orient="horizontal", command=canvas.xview)
         self.config_scrollable = tk.Frame(canvas, bg=self.BG)
 
         self.config_scrollable.bind("<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        self._config_canvas = canvas
         canvas.create_window((0, 0), window=self.config_scrollable, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
 
+        v_scroll.pack(side="right", fill="y")
+        h_scroll.pack(side="bottom", fill="x")
         canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
         canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(-1 * int(e.delta / 120), "units"))
+        # 绑定 Shift+滚轮 水平滚动
+        canvas.bind_all("<Shift-MouseWheel>", lambda e: canvas.xview_scroll(-1 * int(e.delta / 120), "units"))
 
         # 用户信息栏
         ib = tk.Frame(self.config_scrollable, bg=self.BLUE_LIGHT, relief="solid", bd=1)
