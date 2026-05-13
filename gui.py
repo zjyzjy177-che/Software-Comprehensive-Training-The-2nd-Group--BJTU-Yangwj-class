@@ -60,6 +60,13 @@ ADMIN_EMAIL = "24281213@bjtu.edu.cn"
 SCHOOL_URL = "https://www.bjtu.edu.cn"
 HQ_URL = "https://hq.bjtu.edu.cn/index.htm"
 
+# 管理员凭据（无需注册，直接密钥登录）
+_ADMINS = {
+    "24281213": {"name": "张建宇", "key": "admin1c", "role": "主管理员"},
+    "24281210": {"name": "岳思铭", "key": "admin2y", "role": "管理员"},
+    "24251293": {"name": "魏嘉欣", "key": "admin3w", "role": "管理员"},
+}
+
 # ====================== 多语言翻译表 ======================
 LANG_TEXTS = {
     "zh_CN": {
@@ -70,6 +77,10 @@ LANG_TEXTS = {
         "role_label": "身份",
         "student": "学生",
         "teacher": "教师",
+        "admin": "管理员",
+        "admin_key_label": "密  钥",
+        "admin_key_empty": "密钥不能为空",
+        "admin_key_error": "管理员密钥错误",
         "account_label": "学号/工号",
         "password_label": "密  码",
         "captcha_label": "验证码",
@@ -178,6 +189,10 @@ LANG_TEXTS = {
         "role_label": "身份",
         "student": "學生",
         "teacher": "教師",
+        "admin": "管理員",
+        "admin_key_label": "密  鑰",
+        "admin_key_empty": "密鑰不能為空",
+        "admin_key_error": "管理員密鑰錯誤",
         "account_label": "學號/工號",
         "password_label": "密  碼",
         "captcha_label": "驗證碼",
@@ -286,6 +301,10 @@ LANG_TEXTS = {
         "role_label": "Role",
         "student": "Student",
         "teacher": "Teacher",
+        "admin": "Admin",
+        "admin_key_label": "Key",
+        "admin_key_empty": "Key cannot be empty",
+        "admin_key_error": "Invalid admin key",
         "account_label": "ID",
         "password_label": "Password",
         "captcha_label": "Captcha",
@@ -776,6 +795,15 @@ class BJTUSimulationGUI:
                                         font=(SYSTEM_FONT, 8, "bold"), fg="#dd0000", bg=self.WHITE)
         self.lbl_first_login.pack(pady=(4, 14))
 
+        # ---- 管理员入口（红色按钮，用 Frame+Label 解决 macOS bg 失效） ----
+        self.btn_admin = self._make_btn(card, "管理员？",
+                                        font=(SYSTEM_FONT, 10, "bold"),
+                                        bg="#CC0000", fg="#FFD700",
+                                        active_bg="#990000", active_fg="#FFD700",
+                                        command=self._admin_login,
+                                        padx=14, pady=4)
+        self.btn_admin.pack(pady=(0, 10))
+
         # ---- 四张图片（排在登录卡片下方，图片缺失时自动隐藏） ----
         self._pic_labels = []
         if HAS_PIL:
@@ -885,6 +913,15 @@ class BJTUSimulationGUI:
         self.info_user_label = tk.Label(ib, text=self.t("current_user_none"),
                                         font=(SYSTEM_FONT, 10), bg=self.BLUE_LIGHT, fg=self.BLUE)
         self.info_user_label.pack(side="left", padx=10, pady=4)
+        # 用户管理按钮（仅管理员可见）
+        self.btn_usermgr = self._make_btn(ib, "用户管理",
+                                          font=(SYSTEM_FONT, 9),
+                                          bg="#CC0000", fg="#FFD700",
+                                          active_bg="#990000", active_fg="#FFD700",
+                                          command=self._open_user_file,
+                                          width=7, padx=5, pady=1,
+                                          pack_side="right", pack_padx=3, pack_pady=2)
+
         self.btn_logout = self._make_btn(ib, self.t("logout_btn"),
                                           font=(SYSTEM_FONT, 9),
                                           bg=self.BLUE, fg=self.WHITE,
@@ -1133,6 +1170,77 @@ class BJTUSimulationGUI:
             self.captcha_canvas.create_text(x, y, text=char, fill=color,
                                             font=("黑体", 17, "bold"))
 
+    # ====================== 管理员登录 ======================
+    def _admin_login(self):
+        """弹出管理员选择+密钥验证窗口"""
+        dlg = tk.Toplevel(self.root)
+        dlg.title("管理员验证")
+        dlg.geometry("360x220")
+        dlg.resizable(False, False)
+        dlg.config(bg="#FFF8DC")
+        dlg.transient(self.root)
+        dlg.grab_set()
+        dlg.update_idletasks()
+        x = self.root.winfo_x() + (600 - 360) // 2
+        y = self.root.winfo_y() + (690 - 220) // 2
+        dlg.geometry(f"+{x}+{y}")
+
+        tk.Label(dlg, text="管理员登录", font=(SYSTEM_FONT, 15, "bold"),
+                 bg="#CC0000", fg="#FFD700", pady=6).pack(fill="x")
+
+        sf = tk.Frame(dlg, bg="#FFF8DC")
+        sf.pack(pady=(12, 6))
+        tk.Label(sf, text="选择管理员：", font=(SYSTEM_FONT, 11), bg="#FFF8DC").pack(side="left", padx=(0, 6))
+        admin_names = [f"{v['name']} ({v['role']})" for v in _ADMINS.values()]
+        admin_ids = list(_ADMINS.keys())
+        admin_var = tk.StringVar(value=admin_names[0])
+        combo = ttk.Combobox(sf, textvariable=admin_var, values=admin_names,
+                             state="readonly", font=(SYSTEM_FONT, 11), width=18)
+        combo.pack(side="left")
+
+        kf = tk.Frame(dlg, bg="#FFF8DC")
+        kf.pack(pady=(6, 10))
+        tk.Label(kf, text="密  钥：", font=(SYSTEM_FONT, 11), bg="#FFF8DC").pack(side="left", padx=(0, 6))
+        key_entry = tk.Entry(kf, font=(SYSTEM_FONT, 11), width=18, show="*", relief="solid", bd=1)
+        key_entry.pack(side="left")
+        key_entry.bind("<Return>", lambda e: _verify())
+        key_entry.focus_set()
+
+        tk.Label(dlg, text="仅限管理员使用，密钥请妥善保管",
+                 font=(SYSTEM_FONT, 8), fg="#999999", bg="#FFF8DC").pack()
+
+        def _verify():
+            idx = combo.current()
+            if idx < 0:
+                return
+            uid = admin_ids[idx]
+            admin_info = _ADMINS[uid]
+            if key_entry.get().strip() == admin_info["key"]:
+                self.current_user = f"{admin_info['name']}({admin_info['role']})"
+                self.current_role = "admin"
+                dlg.destroy()
+                messagebox.showinfo(self.t("login_success"),
+                                    self.t("welcome", role="管理员", account=admin_info['name']))
+                self._show_config_panel()
+            else:
+                messagebox.showerror(self.t("error"), self.t("admin_key_error"), parent=dlg)
+                key_entry.delete(0, tk.END)
+
+        btn_frame = tk.Frame(dlg, bg="#FFF8DC")
+        btn_frame.pack(pady=(4, 8))
+        self._make_btn(btn_frame, "验证登录",
+                       font=(SYSTEM_FONT, 11, "bold"),
+                       bg="#CC0000", fg="#FFD700",
+                       active_bg="#990000", active_fg="#FFD700",
+                       command=_verify, padx=20, pady=5,
+                       pack_side="left", pack_padx=6)
+        self._make_btn(btn_frame, "取消",
+                       font=(SYSTEM_FONT, 10),
+                       bg="#DDDDDD", fg="#333333",
+                       active_bg="#BBBBBB", active_fg="#333333",
+                       command=dlg.destroy, padx=14, pady=4,
+                       pack_side="left", pack_padx=6)
+
     # ====================== 登录逻辑 ======================
     def _on_role_change(self, *args):
         pass
@@ -1158,6 +1266,7 @@ class BJTUSimulationGUI:
         if not password:
             messagebox.showwarning(self.t("input_error"), self.t("password_empty"))
             return
+
         if not input_captcha:
             messagebox.showwarning(self.t("input_error"), self.t("captcha_empty"))
             return
@@ -1253,11 +1362,27 @@ class BJTUSimulationGUI:
         messagebox.showinfo(self.t("register_success"),
                             self.t("register_done", role=role_display, uid=uid, pwd=default_pwd))
 
+    # ---------- 用户管理 ----------
+    def _open_user_file(self):
+        """管理员打开 gui_users.txt 编辑"""
+        user_path = os.path.join(os.path.dirname(__file__), USER_FILE)
+        if not os.path.exists(user_path):
+            open(user_path, "w", encoding="utf-8").close()
+        if sys.platform == "darwin":
+            os.system(f'open "{user_path}"')
+        elif sys.platform == "win32":
+            os.system(f'start "" "{user_path}"')
+        else:
+            os.system(f'xdg-open "{user_path}"')
+
     # ---------- 面板切换 ----------
     def _show_config_panel(self):
         self.login_frame.pack_forget()
         self.config_frame.pack(fill="both", expand=True)
-        role_display = self.t(self.current_role)
+        # 管理员显示用户管理按钮
+        if self.current_role == "admin":
+            self.btn_usermgr.pack(side="right", padx=3, pady=2, before=self.btn_logout)
+        role_display = self.t(self.current_role) if self.current_role != "admin" else "管理员"
         self.info_user_label.config(text=self.t("current_user").format(
             info=f"{role_display} | {self.current_user}"))
         self.status_bar.config(text=self.t("status_logged_in").format(

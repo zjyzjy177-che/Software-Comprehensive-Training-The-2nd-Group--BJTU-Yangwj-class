@@ -585,6 +585,12 @@ class CanteenVisualizer:
                 bar.remove()
         self.queue_bars.clear()
 
+        # 清除文本标签（食堂名、排队数字等）
+        for lbl in self.text_labels:
+            if lbl in self.ax_map.texts:
+                lbl.remove()
+        self.text_labels.clear()
+
     def _draw_canteens(self, canteens: List[Canteen]) -> None:
         """
         绘制食堂位置和状态
@@ -617,24 +623,25 @@ class CanteenVisualizer:
                                     color='#FF2222', fontweight='bold')
             self.text_labels.append(label)
 
-            # 绘制排队柱状图（在三角上方）
+            # 绘制排队柱状图（三角右侧远处，数字在柱子右边）
             if queue_length > 0:
-                bar_width = tri_size * 0.7
-                bar_height = min(queue_length * 2, 50)
-                bar_top = y + tri_size + 6 + self.font_size + 4  # 从名称标签上方开始
-                bar = Rectangle((x - bar_width/2, bar_top),
+                bar_x = x + tri_size + 14  # 三角右侧留足间距
+                bar_width = 10
+                bar_height = max(min(queue_length * 3, 70), 12)
+                bar_bottom = y + tri_size * 0.5
+                bar = Rectangle((bar_x, bar_bottom - bar_height),
                                bar_width, bar_height,
-                               facecolor=self.colors['queue_bar'],
-                               edgecolor='black', alpha=0.7, linewidth=1)
+                               facecolor='#FF6600',
+                               edgecolor='black', alpha=0.95, linewidth=1.5)
                 self.ax_map.add_patch(bar)
                 self.queue_bars.append(bar)
 
-                # 排队人数标签
-                queue_text = self.ax_map.text(x, bar_top + bar_height/2,
+                # 排队人数标签（柱子右边）
+                queue_text = self.ax_map.text(bar_x + bar_width + 3, bar_bottom - bar_height/2,
                                              str(queue_length),
-                                             fontsize=self.font_size - 3,
-                                             ha='center', va='center',
-                                             color='white', fontweight='bold')
+                                             fontsize=self.font_size + 2,
+                                             ha='left', va='center',
+                                             color='#CC0000', fontweight='bold')
                 self.text_labels.append(queue_text)
 
     def _draw_students(self, students: List[Student]) -> None:
