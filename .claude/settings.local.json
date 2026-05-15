@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(py tests/test_member_b.py)",
+      "Bash(py gui.py)"
+    ]
+  }
+}

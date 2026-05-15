@@ -44,7 +44,7 @@ def test_campus_bounds():
     print("1. campus_bounds.json - 坐标数据验证")
     print("=" * 60)
 
-    bounds_file = os.path.join(os.path.dirname(__file__), 'campus_bounds.json')
+    bounds_file = os.path.join(os.path.dirname(__file__), '..', 'campus_bounds.json')
     with open(bounds_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
