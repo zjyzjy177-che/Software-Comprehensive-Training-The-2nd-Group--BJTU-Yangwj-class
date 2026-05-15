@@ -54,7 +54,7 @@ SYSTEM_FONT = "TkDefaultFont"  # 初始回退值，Tk root 创建后由 _init_fo
 
 # ====================== 常量 ======================
 MAX_ATTEMPTS = 5
-USER_FILE = "gui_users.txt"
+USER_FILE = os.path.join(os.path.expanduser("~"), ".bjtu_canteen_users.txt")
 ILLEGAL_CHARS = set('<>{}[]\\\'\"&|;`$()')
 ADMIN_EMAIL = "24281213@bjtu.edu.cn"
 SCHOOL_URL = "https://www.bjtu.edu.cn"
@@ -1369,16 +1369,15 @@ class BJTUSimulationGUI:
 
     # ---------- 用户管理 ----------
     def _open_user_file(self):
-        """管理员打开 gui_users.txt 编辑"""
-        user_path = os.path.join(os.path.dirname(__file__), USER_FILE)
-        if not os.path.exists(user_path):
-            open(user_path, "w", encoding="utf-8").close()
+        """管理员打开用户文件编辑"""
+        if not os.path.exists(USER_FILE):
+            open(USER_FILE, "w", encoding="utf-8").close()
         if sys.platform == "darwin":
-            os.system(f'open "{user_path}"')
+            os.system(f'open "{USER_FILE}"')
         elif sys.platform == "win32":
-            os.system(f'start "" "{user_path}"')
+            os.system(f'start "" "{USER_FILE}"')
         else:
-            os.system(f'xdg-open "{user_path}"')
+            os.system(f'xdg-open "{USER_FILE}"')
 
     # ---------- 面板切换 ----------
     def _show_config_panel(self):
