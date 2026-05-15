@@ -84,7 +84,8 @@ bjtu_canteen_simulation/
 ├── config.py                # ✅ 配置模块：BJTU地图坐标、仿真参数、JSON导入导出（v1.5）
 ├── strategies.py            # ✅ 策略模块：多食堂选择算法（α距离+β排队+效率因子）（v2.0）
 ├── visualizer.py            # ✅ 可视化模块：Matplotlib动画、三语支持、跨平台字体、TkAgg后端（v2.3.1）
-├── gui.py                   # ✅ GUI模块：Tkinter登录/注册/验证码、参数配置、启动仿真（v2.1.1）
+├── gui.py                   # ✅ GUI模块：Tkinter登录/管理员/参数配置/错峰对比按钮（v2.5）
+├── peak_shift.py            # ✅ 错峰对比模块：建筑分批注入+四图对比分析（v2.0）
 ├── campus_bounds.json       # ✅ 校园边界和32个建筑坐标（权威数据源）
 ├── .gitignore               # Git忽略配置（含gui_users.txt等运行时文件）
 ├── README.md                # 项目文档
@@ -265,27 +266,46 @@ python main.py --config example_config.json
 
 ### ✅ 已完成
 - [x] 核心数据模型（models.py）
-- [x] 仿真引擎（engine.py）
-- [x] 主程序入口（main.py）
+- [x] 仿真引擎（engine.py）：加权建筑出发、错峰支持
+- [x] 主程序入口（main.py）：CLI + 可视化 + GUI接口 + benchmark
 - [x] 测试套件（test_simulation.py）
-- [x] 配置模块（config.py）：BJTU地图坐标、仿真参数、算法权重（v1.5）
-- [x] 校园边界文件（campus_bounds.json）：包含校园边界和32个建筑坐标
-- [x] 策略模块（strategies.py）：多食堂选择算法完整实现（v2.0）
-- [x] 可视化模块（visualizer.py）：Matplotlib动态渲染、校园底图加载、三语支持（v2.3.1）
-- [x] GUI界面（gui.py）：Tkinter登录/注册/验证码/参数配置/启动仿真（v2.1.1）
-- [x] 跨平台兼容：Windows/macOS/Linux字体适配、macOS TkAgg后端动画修复
-- [x] 集成联调测试脚本（test_integration.py）：4条数据链路24项用例全部通过
-- [x] 联调测试报告模板（INTEGRATION_REPORT.md）
-- [x] 组长A单元测试（test_member_a.py）：25项
-- [x] 组员B单元测试（test_member_b.py）：34项
-- [x] 组员C单元测试（test_member_c.py）：15项
+- [x] 配置模块（config.py）：BJTU地图坐标、spawn_weights建筑权重、仿真参数（v1.7）
+- [x] 校园边界文件（campus_bounds.json）：32建筑坐标
+- [x] 策略模块（strategies.py）：多食堂选择算法（v2.0）
+- [x] 可视化模块（visualizer.py）：Matplotlib动画、BJT时钟、三语、黄三角食堂标（v2.9）
+- [x] GUI界面（gui.py）：Tkinter登录/管理员/参数配置/错峰对比按钮（v2.5）
+- [x] 错峰对比（peak_shift.py）：建筑分批注入，四图对比分析（v2.0）
+- [x] 跨平台兼容：Win/Mac/Linux字体+后端、PyInstaller打包支持
+- [x] 集成测试（test_integration.py）：24项全部通过
+- [x] 单元测试：组长A 25项 + 组员B 34项 + 组员C 15项 = 74项
+- [x] 联调测试报告（INTEGRATION_REPORT.md）
 - [x] Git版本控制和文档
 
 ### 🔄 待完成
-- [ ] 联调测试报告填入实际运行结果（三人各自跑完联调后汇总）
-- [ ] 错峰方案对比功能（peak_shift.py）
-- [ ] 性能优化和大规模仿真测试
+- [ ] 组员C的可视化模块联调报告填写
 
+### ✅ 新增完成（2026/05/15 — 错峰对比 + 部署准备）
+- [x] peak_shift.py v2.0：错峰下课方案对比模块
+  - 按建筑权重分 4 波延迟注入学生，模拟真实错峰效果
+  - 无错峰 vs 错峰 5/10/15/20/30 分钟，生成四图对比 + 文本摘要
+  - 实测：0min 峰值 66 → 30min 峰值 24（↓64%）
+- [x] config.py v1.7：新增 spawn_weights 建筑出发人数权重
+  - 思源楼 1000、逸夫楼 800、嘉园 600、宿舍区 400…
+- [x] engine.py v1.4：_get_spawn_position 改为加权随机选取
+- [x] visualizer.py v2.9：
+  - 地图左上角 BJT 实时时钟（11:50 起，1tick=30s）
+  - 排队柱右移+数字独立显示、text_labels 清理修复数字叠加
+  - 学生点缩小(8→5)+配色提亮+排队/用餐±14 随机偏移防扎堆
+  - 食堂位置改为黄色三角标记+亮红粗体名称
+  - 左下信息面板合并单 text 防重叠
+- [x] gui.py v2.5：
+  - 管理员入口重构为独立弹窗（下拉选择+密钥验证）
+  - 管理员专属"用户管理"按钮（仅管理员可见）
+  - "错峰对比分析"按钮（橙色，三语 ToolTip）
+  - 用户文件路径改为 ~/.bjtu_canteen_users.txt（PyInstaller 兼容）
+  - JSON 配置加载后坐标可覆盖 campus_bounds 默认值
+- [x] main.py v2.5：新增 --benchmark 模式（1000人×500tick，0.67s）
+- [x] PyInstaller 打包验证通过（macOS .app 双击运行）
 ### ✅ 新增完成（2026/05/12 — 集成阶段）
 - [x] main.py v2.1.0：新增 `run_simulation_from_gui` 和 `create_config_from_gui` 函数，供 GUI 调用
 - [x] test_integration.py v1.0：全链路集成测试脚本，覆盖4条数据链路24项用例：
@@ -341,5 +361,5 @@ python main.py --config example_config.json
 
 ---
 
-**项目状态**：核心引擎/算法/可视化/GUI四大模块全部完成并集成联调通过（24项集成测试全部通过），三人各自单元测试共74项全部通过，跨平台兼容（Win/Mac/Linux）已验证。GUI支持登录验证→参数配置→启动仿真→动画展示→结果呈现的完整工作流。**当前阶段：集成联调测试收尾，待填入联调报告实际数据，进入错峰对比与性能优化。**
+**项目状态**：全部模块完成——核心引擎/算法/可视化/GUI/错峰对比五大模块集成联调通过（24项），PyInstaller 打包验证通过（macOS .app 双击运行）。三人单元测试 74 项 + 集成测试 24 项全部通过。跨平台兼容（Win/Mac/Linux）、三语支持（简/繁/En）。**当前阶段：部署准备 + 联调报告收尾。**
 
