@@ -324,13 +324,31 @@ class SimulationEngine:
 
     def _get_spawn_position(self) -> Tuple[float, float]:
         """
-        获取学生生成位置（优先使用真实建筑坐标）
+        获取学生生成位置（加权随机选取，大建筑生成更多学生）
 
-        从配置的 spawn_positions（教学楼/宿舍楼坐标）中随机选取，
+        从 spawn_positions 中用 spawn_weights 加权选取，
         无配置时回退到地图边界内随机位置。
         """
         spawn_positions = self.config.get('spawn_positions')
         if spawn_positions:
+            weights = self.config.get('spawn_weights', {})
+            if weights:
+                # 加权随机：思源楼等大建筑权重高，生成更多学生
+                pos_list = list(spawn_positions)
+                # 尝试匹配权重（通过坐标反查建筑名）
+                w_list = []
+                for pos in pos_list:
+                    w_list.append(1.0)  # 默认等权重
+                # 用配置中的权重表
+                cfg_obj = self.config.get('_config_obj')
+                if cfg_obj:
+                    for name, w in weights.items():
+                        if name in cfg_obj.coordinates:
+                            coord = cfg_obj.coordinates[name]
+                            if coord in pos_list:
+                                idx = pos_list.index(coord)
+                                w_list[idx] = w / 100.0  # 缩放到合理范围
+                return tuple(random.choices(pos_list, weights=w_list, k=1)[0])
             return tuple(random.choice(spawn_positions))
         return self._generate_random_position()
 

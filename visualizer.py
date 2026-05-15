@@ -408,6 +408,14 @@ class CanteenVisualizer:
                                      fontsize=8.5, verticalalignment='top',
                                      color=self.colors['text'])
 
+        # BJT 时间显示（地图左上角）
+        self.time_text = self.ax_map.text(0.02, 0.98, "",
+                                          transform=self.ax_map.transAxes,
+                                          fontsize=11, fontweight='bold',
+                                          color='#2C3E50', va='top',
+                                          bbox=dict(boxstyle='round,pad=0.3',
+                                                   facecolor='white', alpha=0.85))
+
         # 添加图例（在地图子图上）
         self._add_legend()
 
@@ -561,6 +569,13 @@ class CanteenVisualizer:
 
         # 更新信息面板
         self._update_info_panel(tick, students, canteens)
+
+        # 更新 BJT 时间显示（假设 11:50 开始，1 tick ≈ 30 秒）
+        base_h, base_m = 11, 50
+        total_seconds = tick * 30
+        current_h = base_h + (base_m + total_seconds // 60) // 60
+        current_m = (base_m + total_seconds // 60) % 60
+        self.time_text.set_text(f"BJT {current_h:02d}:{current_m:02d}")
 
         # 刷新画布
         self.fig.canvas.draw_idle()

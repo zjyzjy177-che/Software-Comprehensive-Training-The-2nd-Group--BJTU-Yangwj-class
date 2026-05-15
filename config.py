@@ -348,12 +348,27 @@ class BJTUConfig:
         # 添加学生生成位置（教学楼和宿舍楼坐标）
         spawn_building_keywords = ['教学楼', '教', '宿舍', '嘉园', '公寓', '楼']
         spawn_positions = []
+        spawn_weights = {}  # 建筑名 → 相对人数权重
         for name, coord in self.coordinates.items():
             if any(kw in name for kw in spawn_building_keywords) and name not in canteen_names:
                 spawn_positions.append(coord)
+                # 根据建筑类型设置权重（大教学楼/宿舍人多，小楼人少）
+                if '思源' in name and '楼' in name:
+                    spawn_weights[name] = 1000
+                elif '逸夫' in name:
+                    spawn_weights[name] = 800
+                elif '嘉园' in name or '16' in name:
+                    spawn_weights[name] = 600
+                elif '宿舍' in name or '公寓' in name:
+                    spawn_weights[name] = 400
+                elif '教' in name and '楼' in name:
+                    spawn_weights[name] = 300
+                else:
+                    spawn_weights[name] = 150
         if not spawn_positions:
             spawn_positions = list(self.coordinates.values())
         config['spawn_positions'] = spawn_positions
+        config['spawn_weights'] = spawn_weights
 
         return config
 
