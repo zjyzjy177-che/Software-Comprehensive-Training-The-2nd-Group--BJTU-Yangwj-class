@@ -86,6 +86,8 @@ def parse_arguments() -> argparse.Namespace:
                        help="安静模式，减少控制台输出")
     parser.add_argument("--test", action="store_true",
                        help="测试模式，运行少量周期并输出详细信息")
+    parser.add_argument("--benchmark", action="store_true",
+                       help="性能测试模式，输出运行耗时")
 
     # 其他参数
     parser.add_argument("--seed", type=int,
@@ -166,6 +168,14 @@ def create_config_from_args(args: argparse.Namespace) -> Dict[str, Any]:
         config_obj.simulation_params['canteen_count'] = 2
         config_obj.simulation_params['spawn_rate'] = 0.08
         print("测试模式：使用简化参数")
+
+    if args.benchmark:
+        config_obj.simulation_params['max_ticks'] = 500
+        config_obj.simulation_params['student_count'] = 1000
+        config_obj.simulation_params['canteen_count'] = 4
+        config_obj.simulation_params['spawn_rate'] = 0.05
+        config_obj.simulation_params['enable_visualization'] = False
+        print("性能测试模式：1000人 × 500 ticks")
 
     # 生成引擎可用的配置字典
     config = config_obj.get_simulation_config()
