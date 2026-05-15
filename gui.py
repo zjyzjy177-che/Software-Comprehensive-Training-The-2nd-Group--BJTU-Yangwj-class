@@ -919,14 +919,13 @@ class BJTUSimulationGUI:
         self.info_user_label = tk.Label(ib, text=self.t("current_user_none"),
                                         font=(SYSTEM_FONT, 10), bg=self.BLUE_LIGHT, fg=self.BLUE)
         self.info_user_label.pack(side="left", padx=10, pady=4)
-        # 用户管理按钮（仅管理员可见）
+        # 用户管理按钮（仅管理员可见，初始隐藏）
         self.btn_usermgr = self._make_btn(ib, "用户管理",
                                           font=(SYSTEM_FONT, 9),
                                           bg="#CC0000", fg="#FFD700",
                                           active_bg="#990000", active_fg="#FFD700",
                                           command=self._open_user_file,
-                                          width=7, padx=5, pady=1,
-                                          pack_side="right", pack_padx=3, pack_pady=2)
+                                          width=7, padx=5, pady=1)
 
         self.btn_logout = self._make_btn(ib, self.t("logout_btn"),
                                           font=(SYSTEM_FONT, 9),
@@ -1398,6 +1397,7 @@ class BJTUSimulationGUI:
         self.current_user = None
         self.current_role = None
         self._config_data = None
+        self.btn_usermgr.pack_forget()
         self.config_frame.pack_forget()
         self.login_frame.pack(fill="both", expand=True)
         self.info_user_label.config(text=self.t("current_user_none"))
