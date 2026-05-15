@@ -574,6 +574,7 @@ class BJTUSimulationGUI:
         self.captcha_code = ""
         self.lang = "zh_CN"
         self._flash_job = None
+        self._config_data = None  # 从 JSON 加载的完整配置（含坐标覆盖）
 
         # 先创建 root 以便 _detect_system_font 可用
         self.root = tk.Tk()
@@ -1396,6 +1397,7 @@ class BJTUSimulationGUI:
     def _back_to_login(self):
         self.current_user = None
         self.current_role = None
+        self._config_data = None
         self.config_frame.pack_forget()
         self.login_frame.pack(fill="both", expand=True)
         self.info_user_label.config(text=self.t("current_user_none"))
@@ -1439,6 +1441,9 @@ class BJTUSimulationGUI:
             self.beta_var.set(qw)
             self.enable_viz_var.set(sp.get("enable_visualization", False))
             self.config_path_var.set(filepath)
+
+            # 保存完整配置（含坐标），启动仿真时覆盖 campus_bounds.json
+            self._config_data = data
 
             messagebox.showinfo(self.t("load_success"),
                                 self.t("config_loaded", file=os.path.basename(filepath)))
@@ -1520,6 +1525,7 @@ class BJTUSimulationGUI:
                 'queue_weight': self.beta_var.get(),
             },
             'lang': self.lang,
+            '_config_data': self._config_data,  # JSON 导入的完整配置（含坐标覆盖）
         }
 
         enable_viz = config_dict['enable_visualization']

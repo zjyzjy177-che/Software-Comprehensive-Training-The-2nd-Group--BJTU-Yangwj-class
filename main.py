@@ -329,6 +329,18 @@ def create_config_from_gui(gui_config: Dict[str, Any]) -> Dict[str, Any]:
     """
     config_obj = BJTUConfig()
 
+    # 如果 GUI 加载了 JSON 配置文件，用其中坐标覆盖 campus_bounds.json 默认值
+    config_data = gui_config.get('_config_data')
+    if config_data:
+        if 'coordinates' in config_data:
+            for name, coord in config_data['coordinates'].items():
+                if isinstance(coord, list) and len(coord) == 2:
+                    config_obj.coordinates[name] = tuple(coord)
+        # 重新推导食堂位置（基于新坐标）
+        config_obj.simulation_params['canteen_positions'] = config_obj._derive_canteen_positions()
+        config_obj.simulation_params['canteen_count'] = gui_config.get('canteen_count',
+                                            len(config_obj.simulation_params['canteen_positions']))
+
     # 参数校验
     max_ticks = gui_config.get('max_ticks', 150)
     canteen_count = gui_config.get('canteen_count', 2)
