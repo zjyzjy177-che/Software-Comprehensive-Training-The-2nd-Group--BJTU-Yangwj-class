@@ -517,6 +517,7 @@ _PARAM_TOOLTIPS = {
         "alpha": "距离权重（α）\n• 值越大 → 学生越倾向去近的食堂\n• 建议：高峰 0.3，平峰 0.8",
         "beta": "排队人数权重（β）\n• 值越大 → 学生越倾向去人少的食堂\n• 建议：高峰 0.7，平峰 0.2",
         "viz": "启用后弹出 Matplotlib 动画窗口\n• 实时显示学生移动和食堂排队\n• 注意：学生数 > 500 时动画可能卡顿\n• 空格暂停，↑↓ 调速，R 重置视图",
+        "peak": "错峰下课方案对比分析\n• 对比 0/5/10/15/20/30 分钟错峰效果\n• 生成四图对比 + 文本摘要\n• 排队峰值降低越多 = 错峰效果越好",
     },
     "zh_TW": {
         "ticks": "模擬時長（週期數）\n• 一個 tick 模擬若干秒\n• 建議範圍：50-1000\n• ⚠ 超過 5000 可能明顯卡頓",
@@ -527,6 +528,7 @@ _PARAM_TOOLTIPS = {
         "alpha": "距離權重（α）\n• 值越大 → 學生越傾向去近的食堂\n• 建議：高峰 0.3，平峰 0.8",
         "beta": "排隊人數權重（β）\n• 值越大 → 學生越傾向去人少的食堂\n• 建議：高峰 0.7，平峰 0.2",
         "viz": "啟用後彈出 Matplotlib 動畫窗口\n• 即時顯示學生移動和食堂排隊\n• 注意：學生數 > 500 時動畫可能卡頓\n• 空格暫停，↑↓ 調速，R 重置視圖",
+        "peak": "錯峰下課方案對比分析\n• 對比 0/5/10/15/20/30 分鐘錯峰效果\n• 生成四圖對比 + 文本摘要\n• 排隊峰值降低越多 = 錯峰效果越好",
     },
     "en": {
         "ticks": "Simulation duration (ticks)\n• One tick ≈ several seconds\n• Suggested: 50-1000\n• ⚠ > 5000 may cause lag",
@@ -537,6 +539,7 @@ _PARAM_TOOLTIPS = {
         "alpha": "Distance weight (α)\n• Higher → students go to nearer canteen\n• Suggest: peak hours 0.3, off-peak 0.8",
         "beta": "Queue weight (β)\n• Higher → students avoid crowded canteens\n• Suggest: peak hours 0.7, off-peak 0.2",
         "viz": "Enable Matplotlib animation window\n• Real-time student movement & queues\n• Note: > 500 students may lag\n• Space=pause, ↑↓=speed, R=reset",
+        "peak": "Peak shift comparison analysis\n• Compare 0/5/10/15/20/30 min stagger\n• Generates 4-chart comparison + summary\n• Higher queue reduction = better stagger",
     },
 }
 
@@ -1049,6 +1052,19 @@ class BJTUSimulationGUI:
                                         font=(SYSTEM_FONT, 9), bg=self.BG, fg=self.BLUE)
         self.lbl_config_path.grid(row=1, column=1, padx=5, pady=5, sticky="w")
 
+        # 错峰对比按钮
+        self.btn_peak = self._make_btn(self.lf_other, "错峰对比分析",
+                                        font=(SYSTEM_FONT, 10, "bold"),
+                                        bg="#E67E22", fg=self.WHITE,
+                                        active_bg="#D35400", active_fg=self.WHITE,
+                                        command=self._run_peak_shift,
+                                        padx=10, pady=3)
+        self.btn_peak.grid(row=2, column=0, columnspan=2, padx=5, pady=8)
+        tip_peak = tk.Label(self.lf_other, text="?", font=(SYSTEM_FONT, 9, "bold"),
+                            bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow", width=2)
+        tip_peak.grid(row=2, column=2, padx=(0, 5), pady=8, sticky="w")
+        ToolTip(tip_peak, lambda: _get_tooltip("peak", self.lang))
+
         # 启动按钮
         lf = tk.Frame(self.config_scrollable, bg=self.BG)
         lf.pack(fill="x", padx=10, pady=10)
@@ -1366,6 +1382,51 @@ class BJTUSimulationGUI:
         save_user(role, uid, default_pwd)
         messagebox.showinfo(self.t("register_success"),
                             self.t("register_done", role=role_display, uid=uid, pwd=default_pwd))
+
+    # ---------- 错峰对比 ----------
+    def _run_peak_shift(self):
+        """在 GUI 中运行错峰对比分析并展示结果图"""
+        try:
+            from peak_shift import run_comparison, print_summary, plot_comparison
+            students = int(self.entry_students.get())
+            # 使用当前参数跑对比
+            self.result_text.delete("1.0", tk.END)
+            self.result_text.insert(tk.END, "正在运行错峰对比分析...\n")
+            self.root.update()
+
+            results = run_comparison([0, 5, 10, 15, 20, 30], students, 300, verbose=False)
+            print_summary(results)
+            plot_comparison(results, "peak_shift")
+
+            self.result_text.delete("1.0", tk.END)
+            self.result_text.insert(tk.END, "=" * 50 + "\n")
+            self.result_text.insert(tk.END, "  错峰下课方案对比 — 完成\n")
+            self.result_text.insert(tk.END, "=" * 50 + "\n\n")
+
+            baseline = results[0]['max_queue'] if results else 1
+            self.result_text.insert(tk.END,
+                f"{'方案':<14} {'最大排队':>8} {'平均等待':>8} {'排队峰降':>8}\n")
+            self.result_text.insert(tk.END, "-" * 42 + "\n")
+            for r in results:
+                label = "同时下课" if r['gap_minutes'] == 0 else f"错峰{r['gap_minutes']}分钟"
+                reduction = (baseline - r['max_queue']) / max(baseline, 1) * 100
+                red_str = f"↓{reduction:.0f}%" if r['gap_minutes'] > 0 else "-"
+                self.result_text.insert(tk.END,
+                    f"{label:<14} {r['max_queue']:>8} {r['avg_wait']:>8.1f} {red_str:>8}\n")
+
+            # 打开生成的图表
+            img_path = os.path.join(os.path.dirname(__file__), "peak_shift_comparison.png")
+            if os.path.exists(img_path):
+                if sys.platform == "darwin":
+                    os.system(f'open "{img_path}"')
+                elif sys.platform == "win32":
+                    os.system(f'start "" "{img_path}"')
+                else:
+                    os.system(f'xdg-open "{img_path}"')
+                self.result_text.insert(tk.END, "\n对比图表已在外部窗口中打开\n")
+        except Exception as e:
+            self.result_text.delete("1.0", tk.END)
+            self.result_text.insert(tk.END, f"错峰对比失败:\n{e}")
 
     # ---------- 用户管理 ----------
     def _open_user_file(self):
