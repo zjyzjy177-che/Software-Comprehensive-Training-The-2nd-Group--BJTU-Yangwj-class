@@ -9,10 +9,28 @@
 
 - **开发语言**：Python 3.10+
 - **系统架构**：C/S (Client/Server) 架构
-- **核心库**：
-  - `Matplotlib`：负责实时排队曲线绘制及动态渲染。
-  - `Tkinter`：负责参数配置界面的 GUI 搭建。
-  - `Standard Library`：利用 `time`, `platform`, `random` 等实现底层仿真引擎。
+- **依赖库**：
+
+| 库 | 用途 | 使用模块 |
+|----|------|---------|
+| `matplotlib` | 2D 校园地图动态渲染、FuncAnimation 动画驱动、排队曲线、饼图、错峰对比图表 | visualizer.py, peak_shift.py |
+| `tkinter` | GUI 登录界面、参数配置面板、仿真启动控制、多语言切换 | gui.py |
+| `numpy` | 数值计算、数组操作（学生位置批量处理） | visualizer.py, peak_shift.py |
+| `PIL/Pillow`（可选） | 校徽 logo 及校园图片加载与缩放 | gui.py |
+| `PyInstaller`（部署用） | 将 Python 项目打包为 macOS .app / Windows .exe 独立可执行文件 | — |
+
+- **标准库**：
+
+| 模块 | 用途 |
+|------|------|
+| `random` | 学生速度/用餐时间随机化、建筑加权随机选取、验证码生成 |
+| `math` | 欧几里得距离计算、学生移动向量 |
+| `json` | campus_bounds.json 坐标加载、仿真结果导出、配置文件读写 |
+| `threading` | GUI 非可视化模式异步运行仿真，避免界面冻结 |
+| `unittest` | 74 项单元测试 + 24 项集成测试框架 |
+| `argparse` | CLI 命令行参数解析 |
+| `os` / `sys` / `platform` | 跨平台路径处理、系统检测、字体适配 |
+| `time` | 仿真计时、性能基准测试、动画帧节流 |
 
 ## 🌟 核心功能
 
