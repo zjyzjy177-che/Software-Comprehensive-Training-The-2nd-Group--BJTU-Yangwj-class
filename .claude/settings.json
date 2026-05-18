@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import gui; print\\('Syntax OK'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import os; size=os.path.getsize\\('抽象小猫.gif'\\); print\\(f'GIF size: {size} bytes \\({size/1024:.1f} KB\\)'\\)\")",
+      "Bash(git pull *)",
+      "Bash(git config *)",
+      "Bash(git check-ignore *)",
+      "Bash(curl -sI https://github.com --connect-timeout 10)",
+      "Bash(netstat -ano)"
+    ]
+  }
+}
