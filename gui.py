@@ -688,15 +688,26 @@ class BJTUSimulationGUI:
         # ---- 白色登录卡片（居中） ----
         card_wrapper = tk.Frame(self.login_frame, bg=self.BG)
         card_wrapper.pack(fill="x", pady=(15, 0))
-        card = tk.Frame(card_wrapper, bg=self.WHITE, relief="solid", bd=1, width=440, height=395)
+        card = tk.Frame(card_wrapper, bg=self.WHITE, relief="solid", bd=1, width=440, height=430)
         card.pack()
         card.pack_propagate(False)
 
-        # 卡片标题
-        self.lbl_card_title = tk.Label(card, text=self.t("user_login"),
+        # 卡片标题行（标题居中 + 管理员按钮居右）
+        title_row = tk.Frame(card, bg=self.WHITE)
+        title_row.pack(fill="x", pady=(18, 12), padx=20)
+
+        self.lbl_card_title = tk.Label(title_row, text=self.t("user_login"),
                                        font=(SYSTEM_FONT, 15, "bold"),
                                        bg=self.WHITE, fg=self.BLUE_DARK)
-        self.lbl_card_title.pack(pady=(18, 12))
+        self.lbl_card_title.place(relx=0.5, rely=0.5, anchor="center")
+
+        self.btn_admin = self._make_btn(title_row, self.t("admin") + "？",
+                                        font=(SYSTEM_FONT, 9, "bold"),
+                                        bg="#CC0000", fg="#FFD700",
+                                        active_bg="#990000", active_fg="#FFD700",
+                                        command=self._admin_login,
+                                        padx=10, pady=2)
+        self.btn_admin.pack(side="right")
 
         # ---- 表单区域 ----
         form = tk.Frame(card, bg=self.WHITE)
@@ -798,15 +809,6 @@ class BJTUSimulationGUI:
         self.lbl_first_login = tk.Label(card, text=self.t("first_login_hint"),
                                         font=(SYSTEM_FONT, 8, "bold"), fg="#dd0000", bg=self.WHITE)
         self.lbl_first_login.pack(pady=(4, 14))
-
-        # ---- 管理员入口（红色按钮，用 Frame+Label 解决 macOS bg 失效） ----
-        self.btn_admin = self._make_btn(card, "管理员？",
-                                        font=(SYSTEM_FONT, 10, "bold"),
-                                        bg="#CC0000", fg="#FFD700",
-                                        active_bg="#990000", active_fg="#FFD700",
-                                        command=self._admin_login,
-                                        padx=14, pady=4)
-        self.btn_admin.pack(pady=(0, 10))
 
         # ---- 四张图片（排在登录卡片下方，图片缺失时自动隐藏） ----
         self._pic_labels = []
@@ -1194,40 +1196,143 @@ class BJTUSimulationGUI:
     # ====================== 管理员登录 ======================
     def _admin_login(self):
         """弹出管理员选择+密钥验证窗口"""
+
+        # ---- 通用 GIF 加载器 ----
+        def _load_gif_frames(gif_bytes_or_path, resize_to, from_bytes=False):
+            frames, durations = [], []
+            try:
+                from PIL import Image as PILImage, ImageTk as PILImageTk
+                import io
+                if from_bytes:
+                    gif_img = PILImage.open(io.BytesIO(gif_bytes_or_path))
+                else:
+                    gif_img = PILImage.open(gif_bytes_or_path)
+                while True:
+                    dur = gif_img.info.get('duration', 30)
+                    durations.append(dur)
+                    frame = PILImageTk.PhotoImage(gif_img.copy().resize(resize_to, PILImage.LANCZOS))
+                    frames.append(frame)
+                    gif_img.seek(len(frames))
+            except (EOFError, Exception):
+                pass
+            return frames, durations
+
+        # 标题栏 GIF（抽象小猫）
+        TITLE_FRAMES, TITLE_DURS = [], []
+        try:
+            from assets._cat_gif import get_gif_bytes
+            TITLE_FRAMES, TITLE_DURS = _load_gif_frames(get_gif_bytes(), (42, 42), from_bytes=True)
+        except Exception:
+            pass
+        if not TITLE_FRAMES:
+            p = os.path.join(os.path.dirname(__file__), "抽象小猫.gif")
+            if HAS_PIL and os.path.exists(p):
+                TITLE_FRAMES, TITLE_DURS = _load_gif_frames(p, (42, 42))
+
+        # 正文区域 GIF（功夫耄耋）
+        BODY_FRAMES, BODY_DURS = [], []
+        try:
+            from assets._gif2_data import get_gif2_bytes
+            BODY_FRAMES, BODY_DURS = _load_gif_frames(get_gif2_bytes(), (90, 152), from_bytes=True)
+        except Exception:
+            pass
+        if not BODY_FRAMES:
+            p = os.path.join(os.path.dirname(__file__), "功夫耄耋.gif")
+            if HAS_PIL and os.path.exists(p):
+                BODY_FRAMES, BODY_DURS = _load_gif_frames(p, (90, 152))
+
+        # 底部爱心 GIF（heart3d）
+        HEART_FRAMES, HEART_DURS = [], []
+        try:
+            from assets._heart_data import get_heart_bytes
+            HEART_FRAMES, HEART_DURS = _load_gif_frames(get_heart_bytes(), (28, 24), from_bytes=True)
+        except Exception:
+            pass
+        if not HEART_FRAMES:
+            p = os.path.join(os.path.dirname(__file__), "heart3d.gif")
+            if HAS_PIL and os.path.exists(p):
+                HEART_FRAMES, HEART_DURS = _load_gif_frames(p, (28, 24))
+
+        # ---- 创建弹窗 ----
+        W, H = 520, 355
         dlg = tk.Toplevel(self.root)
         dlg.title("管理员验证")
-        dlg.geometry("360x220")
+        dlg.geometry(f"{W}x{H}")
         dlg.resizable(False, False)
         dlg.config(bg="#FFF8DC")
         dlg.transient(self.root)
         dlg.grab_set()
         dlg.update_idletasks()
-        x = self.root.winfo_x() + (600 - 360) // 2
-        y = self.root.winfo_y() + (690 - 220) // 2
+        x = self.root.winfo_x() + (600 - W) // 2
+        y = self.root.winfo_y() + (690 - H) // 2
         dlg.geometry(f"+{x}+{y}")
 
-        tk.Label(dlg, text="管理员登录", font=(SYSTEM_FONT, 15, "bold"),
-                 bg="#CC0000", fg="#FFD700", pady=6).pack(fill="x")
+        # ---- 通用动画 Label 工厂 ----
+        def _make_anim_label(parent, frames, durations, bgcolor):
+            lbl = tk.Label(parent, bg=bgcolor)
+            if frames:
+                lbl._frames = frames
+                lbl._durs = durations
+                lbl._idx = 0
+                lbl.config(image=frames[0])
+                def _anim(lbl=lbl):
+                    if not dlg.winfo_exists():
+                        return
+                    lbl._idx = (lbl._idx + 1) % len(lbl._frames)
+                    lbl.config(image=lbl._frames[lbl._idx])
+                    lbl._timer = dlg.after(lbl._durs[lbl._idx], lambda: _anim(lbl))
+                lbl._timer = dlg.after(durations[0], lambda: _anim(lbl))
+            return lbl
 
-        sf = tk.Frame(dlg, bg="#FFF8DC")
-        sf.pack(pady=(12, 6))
-        tk.Label(sf, text="选择管理员：", font=(SYSTEM_FONT, 11), bg="#FFF8DC").pack(side="left", padx=(0, 6))
+        # ========== 标题栏 ==========
+        title_bar = tk.Frame(dlg, bg="#CC0000")
+        title_bar.pack(fill="x")
+
+        _make_anim_label(title_bar, TITLE_FRAMES, TITLE_DURS, "#CC0000").pack(
+            side="left", padx=(10, 0), pady=4)
+        tk.Label(title_bar, text="管理员登录", font=(SYSTEM_FONT, 15, "bold"),
+                 bg="#CC0000", fg="#FFD700", pady=8).pack(side="left", expand=True)
+        _make_anim_label(title_bar, TITLE_FRAMES, TITLE_DURS, "#CC0000").pack(
+            side="right", padx=(0, 10), pady=4)
+
+        # ========== 正文区域 ==========
+        body = tk.Frame(dlg, bg="#FFF8DC")
+        body.pack(fill="both", expand=True)
+
+        # 左侧功夫耄耋 GIF
+        _make_anim_label(body, BODY_FRAMES, BODY_DURS, "#FFF8DC").pack(
+            side="left", padx=(20, 10), pady=(6, 6))
+
+        # 右侧功夫耄耋 GIF
+        _make_anim_label(body, BODY_FRAMES, BODY_DURS, "#FFF8DC").pack(
+            side="right", padx=(10, 20), pady=(6, 6))
+
+        # 中央表单
+        center = tk.Frame(body, bg="#FFF8DC")
+        center.pack(expand=True)
+
+        sf = tk.Frame(center, bg="#FFF8DC")
+        sf.pack(pady=(2, 6))
+        tk.Label(sf, text="选择管理员：", font=(SYSTEM_FONT, 11), bg="#FFF8DC").pack(
+            side="left", padx=(0, 6))
         admin_names = [f"{v['name']} ({v['role']})" for v in _ADMINS.values()]
         admin_ids = list(_ADMINS.keys())
         admin_var = tk.StringVar(value=admin_names[0])
         combo = ttk.Combobox(sf, textvariable=admin_var, values=admin_names,
-                             state="readonly", font=(SYSTEM_FONT, 11), width=18)
+                             state="readonly", font=(SYSTEM_FONT, 11), width=16)
         combo.pack(side="left")
 
-        kf = tk.Frame(dlg, bg="#FFF8DC")
-        kf.pack(pady=(6, 10))
-        tk.Label(kf, text="密  钥：", font=(SYSTEM_FONT, 11), bg="#FFF8DC").pack(side="left", padx=(0, 6))
-        key_entry = tk.Entry(kf, font=(SYSTEM_FONT, 11), width=18, show="*", relief="solid", bd=1)
+        kf = tk.Frame(center, bg="#FFF8DC")
+        kf.pack(pady=(0, 6))
+        tk.Label(kf, text="密  钥：", font=(SYSTEM_FONT, 11), bg="#FFF8DC").pack(
+            side="left", padx=(0, 6))
+        key_entry = tk.Entry(kf, font=(SYSTEM_FONT, 11), width=16, show="*",
+                             relief="solid", bd=1)
         key_entry.pack(side="left")
         key_entry.bind("<Return>", lambda e: _verify())
         key_entry.focus_set()
 
-        tk.Label(dlg, text="仅限管理员使用，密钥请妥善保管",
+        tk.Label(center, text="仅限管理员使用，密钥请妥善保管",
                  font=(SYSTEM_FONT, 8), fg="#999999", bg="#FFF8DC").pack()
 
         def _verify():
@@ -1247,8 +1352,8 @@ class BJTUSimulationGUI:
                 messagebox.showerror(self.t("error"), self.t("admin_key_error"), parent=dlg)
                 key_entry.delete(0, tk.END)
 
-        btn_frame = tk.Frame(dlg, bg="#FFF8DC")
-        btn_frame.pack(pady=(4, 8))
+        btn_frame = tk.Frame(center, bg="#FFF8DC")
+        btn_frame.pack(pady=(4, 0))
         self._make_btn(btn_frame, "验证登录",
                        font=(SYSTEM_FONT, 11, "bold"),
                        bg="#CC0000", fg="#FFD700",
@@ -1261,6 +1366,27 @@ class BJTUSimulationGUI:
                        active_bg="#BBBBBB", active_fg="#333333",
                        command=dlg.destroy, padx=14, pady=4,
                        pack_side="left", pack_padx=6)
+
+        # ========== 底部爱心排 ==========
+        bottom_bar = tk.Frame(dlg, bg="#FFF8DC")
+        bottom_bar.pack(fill="x", pady=(0, 8))
+        inner = tk.Frame(bottom_bar, bg="#FFF8DC")
+        inner.pack(expand=True)
+        for _ in range(11):
+            lbl = tk.Label(inner, bg="#FFF8DC")
+            if HEART_FRAMES:
+                lbl._frames = HEART_FRAMES
+                lbl._durs = HEART_DURS
+                lbl._idx = 0
+                lbl.config(image=HEART_FRAMES[0])
+                def _anim_heart(lbl=lbl):
+                    if not dlg.winfo_exists():
+                        return
+                    lbl._idx = (lbl._idx + 1) % len(lbl._frames)
+                    lbl.config(image=lbl._frames[lbl._idx])
+                    lbl._timer = dlg.after(lbl._durs[lbl._idx], lambda: _anim_heart(lbl))
+                lbl._timer = dlg.after(HEART_DURS[0], lambda: _anim_heart(lbl))
+            lbl.pack(side="left", padx=8)
 
     # ====================== 登录逻辑 ======================
     def _on_role_change(self, *args):
