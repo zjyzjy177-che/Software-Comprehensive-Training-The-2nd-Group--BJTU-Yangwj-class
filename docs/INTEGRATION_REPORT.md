@@ -184,6 +184,10 @@
 > 
 > 本次集成联调针对我负责的 visualizer.py（可视化模块）和 gui.py（GUI 界面）两个模块，完成了接口联通性验证、单元测试及 GUI 端到端流程测试。可视化链路 L4（engine → visualizer）通过 `test_integration.py` 的 `TestDataFlowEngineToVisualizer` 3 项用例全部通过：`initialize_visualization` 正确创建 CanteenVisualizer 实例并加载 campus_map.png 底图、Windows 平台微软雅黑字体适配正常；`update_visualization` 帧更新无误，engine.tick 序号与 visualizer 收到的数据一致。组员 C 负责的 `test_member_c.py` 15 项单元测试全部通过，覆盖可视化器初始化（9 项）、静态帧渲染（3 项）和 main.py 接口集成（3 项）。GUI 端到端测试覆盖完整用户流程：注册/登录、非可视化模式运行并显示统计数据（服务人数/排队峰值/食堂利用率）、可视化模式 Matplotlib 动画窗口弹出并播放至结束、空格/上下箭头/R 键交互控制响应正常、ticks=-1 参数校验正确弹出警告、中英文切换后 ToolTip 与图表文字同步更新。异常场景 E-07（visualizer.py 缺失）验证通过：ImportError 被正确捕获并回退至非可视化模式；E-09（campus_map.png 缺失）验证通过：打印提示信息后地图其他元素正常渲染。可视化与 GUI 模块接口联通正常，数据流转正确，交互体验符合预期，可通过进入部署阶段。
 
+> **测试结论（张建宇负责部分——核心引擎 + 系统集成）**：
+> 
+> 作为组长，我负责 models.py/engine.py/main.py 三个核心模块的开发与全系统集成联调。本次集成阶段完成以下工作：（1）编写 `test_integration.py` 共 24 项全链路集成测试用例，覆盖 JSON→config→engine（6 项）、strategies→engine→models 状态机（4 项）、engine→visualizer（3 项）、端到端全链路（5 项）及异常场景（6 项），全部通过。（2）在 main.py 新增 `run_simulation_from_gui` 和 `create_config_from_gui` 两个函数，打通 GUI→main→engine 调用链路，支持参数校验和错误捕获。（3）编写 `peak_shift.py` 错峰对比模块，通过分批注入学生模拟不同下课时间差对排队压力的影响，实测无错峰峰值 66 人、错峰 30 分钟峰值 24 人（↓64%），生成四图对比图表和文本摘要。（4）全系统 Python 环境集成验证：所有模块可独立导入、跨模块接口调用正常、CLI 与 GUI 双模式运行正常、测试模式（150tick/30 学生）运行结果符合预期。（5）性能基准测试：2000 人×500tick 耗时 1.35s，线性可扩展。核心引擎、接口联通、数据流转、错峰对比均达到集成阶段验收标准，系统可通过进入部署阶段。
+
 ---
 
 ### 附录：集成测试运行命令
