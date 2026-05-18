@@ -220,3 +220,4 @@ gui_users.txt
 # 测试输出图片（由 visualizer 生成，不纳入版本控制）
 test_frame.png
 peak_shift_comparison.png
+*.rar

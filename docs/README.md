@@ -299,8 +299,45 @@ python main.py --config example_config.json
 - [x] 联调测试报告（INTEGRATION_REPORT.md）
 - [x] Git版本控制和文档
 
-### 🔄 待完成
-- 无（全部完成）
+### 🔄 部署阶段（第13-15周 / 6月）
+
+
+#### 一、新功能开发
+
+| 编号 | 功能 | 负责人 | 说明 | 技术要点 |
+|------|------|--------|------|---------|
+| 1 | **Schedule 课程表实现** | 岳思铭（B） | 将 `class_schedules` 真正接入 engine：不同建筑按课表下课时间分批释放学生 | 修改 `engine.py` 的 `_create_initial_students`，按 `gap_time` 将学生分批在不同 tick 注入；修改 `config.py` 的 `class_schedules` 为完整课表数据 |
+| 2 | **地图缩放 + 三视图** | 魏嘉昕（C） | 提供地图全屏、纯图表、合并三种视图，地图支持滚轮缩放拖拽 | `visualizer.py` 新增视图切换按钮/快捷键，地图用 `ax_map.set_xlim/ylim` 动态调整；三种视图用 `GridSpec` 重排布局 |
+| 3 | **区域模拟着色** | 魏嘉昕（C） | 学生按出发建筑着色，食堂信息面板显示来自各建筑的人数 | engine 记录 `Student.origin_building`，visualizer 按来源着色（新增色板），右下角面板追加 `{食堂}: 思源楼15人 逸夫楼8人 ...` |
+| 4 | **Excel/Doc 输出** | 张建宇（A） | 仿真结果一键导出为 Excel 或 Word 文档 | `pip install openpyxl python-docx`，新建 `export_report.py` 读取 `engine.get_statistics()` + `tick_history` 生成带图表的 .xlsx 和 .docx |
+
+
+#### 二、部署文档（三人分工）
+
+| 文档 | 负责人 | 内容要求 |
+|------|--------|---------|
+| **系统部署环境搭建说明** | 张建宇（A） | Python 版本要求、依赖安装 `pip install matplotlib numpy pillow`、PyInstaller 打包命令、macOS/Windows 分别说明 |
+| **系统使用手册** | 魏嘉昕（C） | GUI 登录/注册/管理员、参数配置说明、可视化交互（空格/↑↓/R）、错峰对比使用方法、CLI 命令行参数表 |
+| **系统设计开发总结报告** | 三人各写章节→张建宇汇总 | 项目背景、技术架构、模块设计、测试总结、不足与展望。每人写自己负责模块的 500 字 |
+| **打包交付** | 张建宇（A） | `pyinstaller --windowed` 打包 macOS .app + Windows .exe，放入 `release/` 目录 |
+
+
+#### 三、三周时间安排
+
+```
+第13周（5/19-5/25）：新功能开发
+  张建宇 → export_report.py Excel/Doc 导出
+  岳思铭 → Schedule 接入 engine
+  魏嘉昕 → 三视图框架 + 区域着色数据收集
+
+第14周（5/26-6/1）：联调 + 文档
+  张建宇 → 部署说明 + PyInstaller 打包 + 汇总总结报告
+  岳思铭 → Schedule 联调 + 总结报告自己的章节
+  魏嘉昕 → 三视图/着色联调 + 系统使用手册
+
+第15周（6/2-6/8）：最终交付
+  张建宇 → release/ 打包 + 最终检查 + 提交
+```
 
 ### ✅ 新增完成（2026/05/15 — 错峰对比 + 部署准备）
 - [x] peak_shift.py v2.0：错峰下课方案对比模块
@@ -379,5 +416,5 @@ python main.py --config example_config.json
 
 ---
 
-**项目状态**：全部模块完成——核心引擎/算法/可视化/GUI/错峰对比五大模块集成联调通过（24项），PyInstaller 打包验证通过（macOS .app 双击运行）。三人单元测试 74 项 + 集成测试 24 项全部通过。跨平台兼容（Win/Mac/Linux）、三语支持（简/繁/En）。**当前阶段：部署准备 + 联调报告收尾。**
+**项目状态**：五大模块全部完成，98 项测试通过，PyInstaller 打包验证通过。**当前阶段：第13-15周部署阶段——Schedule 接入/Schedule/三视图+区域着色/Excel导出 + 三份部署文档 + 最终打包。**
 
