@@ -1384,8 +1384,8 @@ class BJTUSimulationGUI:
                         return
                     lbl._idx = (lbl._idx + 1) % len(lbl._frames)
                     lbl.config(image=lbl._frames[lbl._idx])
-                    lbl._timer = dlg.after(lbl._durs[lbl._idx], lambda: _anim_heart(lbl))
-                lbl._timer = dlg.after(HEART_DURS[0], lambda: _anim_heart(lbl))
+                    lbl._timer = dlg.after(lbl._durs[lbl._idx], lambda l=lbl, f=_anim_heart: f(l))
+                lbl._timer = dlg.after(HEART_DURS[0], lambda l=lbl, f=_anim_heart: f(l))
             lbl.pack(side="left", padx=8)
 
     # ====================== 登录逻辑 ======================
