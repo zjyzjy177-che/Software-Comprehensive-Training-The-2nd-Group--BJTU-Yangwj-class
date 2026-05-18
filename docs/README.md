@@ -300,7 +300,7 @@ python main.py --config example_config.json
 - [x] Git版本控制和文档
 
 ### 🔄 待完成
-- [ ] 组员C的可视化模块联调报告填写
+- 无（全部完成）
 
 ### ✅ 新增完成（2026/05/15 — 错峰对比 + 部署准备）
 - [x] peak_shift.py v2.0：错峰下课方案对比模块
