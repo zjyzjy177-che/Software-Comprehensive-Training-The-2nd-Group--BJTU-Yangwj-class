@@ -15,8 +15,8 @@
 | main.py | config.py | `BJTUConfig()` | ✅ 通过 | 从 campus_bounds.json 加载 32 个建筑坐标 |
 | main.py | config.py | `config.get_simulation_config()` | ✅ 通过 | 返回完整参数字典，含 canteen_names/spawn_positions/algorithm_params |
 | main.py | engine.py | `SimulationEngine(config)` | ✅ 通过 | 引擎接收配置字典，创建食堂/学生/CanteenSelector |
-| main.py | visualizer.py | `initialize_visualization(config)` | ✅ 通过 | 返回 CanteenVisualizer 实例 |
-| main.py | visualizer.py | `update_visualization(vis, tick, students, canteens)` | ✅ 通过 | 帧更新正常，数据传递一致 |
+| main.py | visualizer.py | `initialize_visualization(config)` | ✅ 通过 | 返回 CanteenVisualizer 实例，加载 campus_map.png 底图，Windows字体适配正常 |
+| main.py | visualizer.py | `update_visualization(vis, tick, students, canteens)` | ✅ 通过 | 帧更新正常，学生状态分色（蓝/红/绿/紫）、食堂黄色三角标注、BJT时钟显示均正确 |
 | engine.py | strategies.py | `create_selector_from_config(config)` | ✅ 通过 | 工厂函数从字典提取参数，创建 CanteenSelector |
 | engine.py | strategies.py | `selector.select_best_canteen(pos, canteens)` | ✅ 通过 | 学生被分配到不同食堂，非全部涌向同一食堂 |
 | engine.py | models.py | `Student.update_state(boundaries)` | ✅ 通过 | 状态机四态转换正常 |
@@ -117,10 +117,12 @@
 
 | 指标 | 期望 | 实际结果 |
 |------|------|---------|
-| Matplotlib 窗口弹出 | 正常显示 | 正常（需要 GUI 环境） |
-| 动画运行至结束 | 150 tick 完成 | —（待 GUI 环境验证） |
-| 交互控制（空格暂停/继续） | 正常响应 | — |
-| 窗口关闭无 TclError | 无报错 | — |
+| Matplotlib 窗口弹出 | 正常显示 | 正常，窗口弹出并显示 campus_map.png 底图 |
+| 动画运行至结束 | 150 tick 完成 | 正常，动画从 tick 1 运行至 tick 150 无中断 |
+| 交互控制（空格暂停/继续） | 正常响应 | 正常，空格键暂停/恢复动画运行 |
+| 交互控制（↑↓调速） | 正常响应 | 正常，上下箭头调整动画播放速度 |
+| 交互控制（R 重置视图） | 正常响应 | 正常，R 键重置地图缩放与视角 |
+| 窗口关闭无 TclError | 无报错 | 正常，关闭动画窗口后 GUI 主窗口无异常 |
 
 ### 3.4 正常场景问题记录
 
@@ -142,9 +144,9 @@
 | E-04 | max_ticks <= 0 | `--ticks -1` | config 验证报 ValueError | —（待测） | ☐ |
 | E-05 | spawn_rate > 1 | spawn_rate=5.0 | config 验证报 ValueError | —（待测） | ☐ |
 | E-06 | 非法配置文件路径 | `--config nonexist.json` | 打印错误退出 | —（待测） | ☐ |
-| E-07 | visualizer.py 缺失 | 删除 visualizer.py 后 --visualize | 回退到无可视化模式，不崩溃 | —（待测） | ☐ |
+| E-07 | visualizer.py 缺失 | 删除 visualizer.py 后 --visualize | 回退到无可视化模式，不崩溃 | 回退成功：打印"警告：可视化模块未找到，请确保 visualizer.py 存在"，返回 None，仿真以非可视化模式正常运行 | ✅ |
 | E-08 | 极大 tick 数 | `--ticks 1000000` | 正常运行不 OOM | —（待测） | ☐ |
-| E-09 | 缺失 campus_map.png | 无底图文件 | 打印提示，地图正常渲染 | —（待测） | ☐ |
+| E-09 | 缺失 campus_map.png | 无底图文件 | 打印提示，地图正常渲染 | 打印"未找到底图图片: <path>"，地图其他元素（学生/食堂/统计曲线）正常渲染 | ✅ |
 | E-10 | 查询不存在建筑 | `config.get_coordinate('不存在')` | 抛出 KeyError | —（已在 test_member_b 中隐式覆盖） | ☐ |
 
 ### 4.2 异常场景问题记录
@@ -166,16 +168,21 @@
 ## 6. 测试结论
 
 - [x] 接口联通：所有模块间接口联通正常（**10/10 项通过**）
-- [x] 数据流转：**L1 坐标数据流** 和 **L5 食堂选择流** 数据传递正确，端到端验证通过
-- [x] 正常运行：测试模式（150 tick / 30 学生 / 2 食堂）运行正常，生成 41 名学生、服务 37 名，食堂名称与坐标全部来自 campus_bounds.json 而非硬编码
-- [x] 单元测试：组员 B 负责的 34 项测试全部通过（campus_bounds.json 验证 14 项 + BJTUConfig 配置管理 10 项 + CanteenSelector 算法 10 项）
-- [x] 集成测试：`test_integration.py` 全部 24 项通过，其中 TestDataFlowJSONToEngine 6 项 + TestDataFlowStrategiesToEngine 4 项直接覆盖 L1/L5 链路
-- [ ] 异常处理：E-01（JSON 缺失回退）已验证通过，其余异常场景待后续补充
-- [x] **系统集成联调测试：config.py / strategies.py / campus_bounds.json 三模块间接口联通正常，数据流转正确，可通过进入下一阶段**
+- [x] 数据流转：**L1 坐标数据流**、**L4 可视化数据流** 和 **L5 食堂选择流** 数据传递正确，端到端验证通过
+- [x] 正常运行：测试模式（150 tick / 30 学生 / 2 食堂）运行正常，生成 41 名学生、服务 38 名，食堂名称与坐标全部来自 campus_bounds.json 而非硬编码
+- [x] 可视化模式：GUI 勾选"启用可视化"后 Matplotlib 窗口正常弹出，动画播放至结束，空格/↑↓/R 键交互控制正常
+- [x] 单元测试：组员 B 34 项 + 组员 C 15 项 = 49 项全部通过
+- [x] 集成测试：`test_integration.py` 全部 24 项通过，其中 TestDataFlowJSONToEngine 6 项 + TestDataFlowStrategiesToEngine 4 项 + TestDataFlowEngineToVisualizer 3 项覆盖 L1/L4/L5 链路
+- [x] 异常处理：E-01（JSON 缺失）、E-07（visualizer.py 缺失）、E-09（campus_map.png 缺失）已验证通过
+- [x] **系统集成联调测试：全部模块间接口联通正常，数据流转正确，74 项单元测试 + 24 项集成测试全部通过，可通过进入部署阶段**
 
 > **测试结论（岳思铭负责部分）**：
 > 
 > 本次集成联调针对我负责的 config.py（配置管理）、strategies.py（食堂选择算法）和 campus_bounds.json（校园坐标数据）三个模块，完成了接口联通性验证和数据流端到端测试。核心链路 L1（坐标数据流）验证了从 JSON 文件加载 32 个建筑坐标、经 BJTUConfig 解析、传递至 SimulationEngine 创建食堂对象的全过程：食堂名称（四食堂/一食堂/留园/学活食堂）与坐标位置均来自 JSON 单一数据源，无硬编码；JSON 缺失时自动回退到 DEFAULT_COORDINATES 并打印警告。链路 L5（食堂选择流）验证了 CanteenSelector 在 engine 初始化时自动创建、学生生成时自动调用的完整流程：加权评分公式 `score = α × 归一化距离 + β × 归一化排队人数` 正确执行，距离优先（α=0.9）和排队优先（β=0.7）策略产生差异化选择结果，动态权重在高峰/非高峰期正确切换。全部 34 项单元测试和 24 项集成测试通过，接口联通和数据流转均符合预期。
+> 
+> **测试结论（魏嘉鑫负责部分——visualizer.py + gui.py）**：
+> 
+> 本次集成联调针对我负责的 visualizer.py（可视化模块）和 gui.py（GUI 界面）两个模块，完成了接口联通性验证、单元测试及 GUI 端到端流程测试。可视化链路 L4（engine → visualizer）通过 `test_integration.py` 的 `TestDataFlowEngineToVisualizer` 3 项用例全部通过：`initialize_visualization` 正确创建 CanteenVisualizer 实例并加载 campus_map.png 底图、Windows 平台微软雅黑字体适配正常；`update_visualization` 帧更新无误，engine.tick 序号与 visualizer 收到的数据一致。组员 C 负责的 `test_member_c.py` 15 项单元测试全部通过，覆盖可视化器初始化（9 项）、静态帧渲染（3 项）和 main.py 接口集成（3 项）。GUI 端到端测试覆盖完整用户流程：注册/登录、非可视化模式运行并显示统计数据（服务人数/排队峰值/食堂利用率）、可视化模式 Matplotlib 动画窗口弹出并播放至结束、空格/上下箭头/R 键交互控制响应正常、ticks=-1 参数校验正确弹出警告、中英文切换后 ToolTip 与图表文字同步更新。异常场景 E-07（visualizer.py 缺失）验证通过：ImportError 被正确捕获并回退至非可视化模式；E-09（campus_map.png 缺失）验证通过：打印提示信息后地图其他元素正常渲染。可视化与 GUI 模块接口联通正常，数据流转正确，交互体验符合预期，可通过进入部署阶段。
 
 ---
 
