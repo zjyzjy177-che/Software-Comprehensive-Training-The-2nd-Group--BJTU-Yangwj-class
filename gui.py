@@ -115,6 +115,9 @@ LANG_TEXTS = {
         "running_msg": "正在运行仿真，请稍候…\n",
         "sim_complete": "仿真运行完成",
         "sim_failed": "仿真运行失败",
+        "sim_force_stopped": "仿真已被强制停止",
+        "stop_btn": "⏹ 强制停止",
+        "start_simulation": "启动仿真",
         "stats_title": "【统计数据】",
         "not_login_warn": "未登录",
         "not_login_msg": "请先登录后再启动仿真",
@@ -227,6 +230,9 @@ LANG_TEXTS = {
         "running_msg": "正在運行模擬，請稍候…\n",
         "sim_complete": "模擬運行完成",
         "sim_failed": "模擬運行失敗",
+        "sim_force_stopped": "模擬已被強制停止",
+        "stop_btn": "⏹ 強制停止",
+        "start_simulation": "啟動模擬",
         "stats_title": "【統計數據】",
         "not_login_warn": "未登錄",
         "not_login_msg": "請先登錄後再啟動模擬",
@@ -339,6 +345,9 @@ LANG_TEXTS = {
         "running_msg": "Running simulation, please wait…\n",
         "sim_complete": "Simulation Complete",
         "sim_failed": "Simulation Failed",
+        "sim_force_stopped": "Simulation force stopped",
+        "stop_btn": "⏹ Force Stop",
+        "start_simulation": "Launch Simulation",
         "stats_title": "[Statistics]",
         "not_login_warn": "Not Logged In",
         "not_login_msg": "Please login before launching simulation",
@@ -1076,7 +1085,15 @@ class BJTUSimulationGUI:
                                           active_bg=self.BLUE_HOVER, active_fg=self.WHITE,
                                           command=self._launch_simulation,
                                           width=16, padx=14, pady=6)
-        self.launch_btn.pack()
+        self.launch_btn.pack(side="left", padx=2, pady=2)
+
+        self.stop_btn = self._make_btn(lf, self.t("stop_btn"),
+                                        font=(SYSTEM_FONT, 14, "bold"),
+                                        bg="#CC0000", fg=self.WHITE,
+                                        active_bg="#990000", active_fg=self.WHITE,
+                                        command=self._force_stop_simulation,
+                                        width=14, padx=14, pady=6)
+        # 停止按钮初始隐藏，仿真启动后才显示
 
         # 结果显示
         self.lf_result = tk.LabelFrame(self.config_scrollable, text=self.t("result_label"),
@@ -1148,6 +1165,7 @@ class BJTUSimulationGUI:
         self.cb_viz.config(text=self.t("enable_viz"))
         self.btn_browse._lbl.config(text=self.t("browse_config"))
         self.launch_btn._lbl.config(text=self.t("launch_btn"))
+        self.stop_btn._lbl.config(text=self.t("stop_btn"))
         self.lf_result.config(text=self.t("result_label"))
 
     # ====================== 闪烁动画 ======================
@@ -1670,6 +1688,20 @@ class BJTUSimulationGUI:
 
         return errors
 
+    # ---------- 强制停止仿真 ----------
+    def _force_stop_simulation(self):
+        """强制关闭 Matplotlib 可视化窗口并终止仿真"""
+        try:
+            import matplotlib.pyplot as plt
+            plt.close('all')
+        except Exception:
+            pass
+        self.stop_btn.pack_forget()
+        self.result_text.delete("1.0", tk.END)
+        self.result_text.insert(tk.END, self.t("sim_force_stopped"))
+        self.launch_btn._lbl.config(text=self.t("launch_btn"))
+        self.launch_btn.config(cursor="hand2")
+
     # ---------- 启动仿真 ----------
     def _launch_simulation(self):
         if self.current_user is None:
@@ -1717,6 +1749,7 @@ class BJTUSimulationGUI:
         enable_viz = config_dict['enable_visualization']
         self.launch_btn._lbl.config(text=self.t("launching"))
         self.launch_btn.config(cursor="watch")
+        self.stop_btn.pack(side="left", padx=2, pady=2)  # 显示强制停止按钮
         self.result_text.delete("1.0", tk.END)
         self.result_text.insert(tk.END, self.t("running_msg"))
         self.root.update()
@@ -1750,6 +1783,7 @@ class BJTUSimulationGUI:
             thread.start()
 
     def _display_result(self, result):
+        self.stop_btn.pack_forget()  # 隐藏强制停止按钮
         self.launch_btn._lbl.config(text=self.t("launch_btn"))
         self.launch_btn.config(cursor="hand2")
         self.result_text.delete("1.0", tk.END)
