@@ -1558,14 +1558,18 @@ class BJTUSimulationGUI:
 
         def run_in_thread():
             try:
-                from peak_shift import run_comparison, print_summary, plot_comparison
+                from peak_shift import run_comparison, print_summary
                 results = run_comparison([0, 5, 10, 15, 20, 30], students, 300, verbose=False)
                 print_summary(results)
-                plot_comparison(results, "peak_shift")
-
-                def _show_result():
+                # Matplotlib 绘图必须在主线程执行，通过 after 投递
+                def _finish():
                     self.stop_btn.pack_forget()
                     self.btn_peak._lbl.config(text=self.t("peak_shift_btn"))
+                    try:
+                        from peak_shift import plot_comparison
+                        plot_comparison(results, "peak_shift")
+                    except Exception as pe:
+                        self.result_text.insert(tk.END, f"\n图表生成失败: {pe}\n")
                     self.result_text.delete("1.0", tk.END)
                     self.result_text.insert(tk.END, "=" * 50 + "\n")
                     self.result_text.insert(tk.END, "  错峰下课方案对比 — 完成\n")
@@ -1582,7 +1586,6 @@ class BJTUSimulationGUI:
                         self.result_text.insert(tk.END,
                             f"{label:<14} {r['max_queue']:>8} {r['avg_wait']:>8.1f} {red_str:>8}\n")
 
-                    # 打开生成的图表
                     img_path = os.path.join(os.path.dirname(__file__), "peak_shift_comparison.png")
                     if os.path.exists(img_path):
                         if sys.platform == "darwin":
@@ -1592,14 +1595,14 @@ class BJTUSimulationGUI:
                         else:
                             os.system(f'xdg-open "{img_path}"')
                         self.result_text.insert(tk.END, "\n对比图表已在外部窗口中打开\n")
-                self.root.after(0, _show_result)
+                self.root.after(0, _finish)
             except Exception as e:
-                self.root.after(0, lambda: [
+                self.root.after(0, lambda: (
                     self.stop_btn.pack_forget(),
                     self.btn_peak._lbl.config(text=self.t("peak_shift_btn")),
                     self.result_text.delete("1.0", tk.END),
                     self.result_text.insert(tk.END, f"错峰对比失败:\n{e}")
-                ])
+                ))
         thread = threading.Thread(target=run_in_thread, daemon=True)
         thread.start()
 
