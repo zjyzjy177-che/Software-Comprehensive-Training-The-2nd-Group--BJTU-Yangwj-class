@@ -618,14 +618,14 @@ class BJTUSimulationGUI:
     # ---------- UI 构建 ----------
     def _build_ui(self):
         self.root.title(self.t("window_title"))
-        self.root.geometry("600x690")
+        self.root.geometry("600x740")
         self.root.resizable(False, False)
 
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
         x = (sw - 600) // 2
-        y = (sh - 690) // 2
-        self.root.geometry(f"600x690+{x}+{y}")
+        y = (sh - 740) // 2
+        self.root.geometry(f"600x740+{x}+{y}")
         self.root.config(bg=self.BG)
 
         self.root.bind("<Return>", lambda e: self._local_login())
@@ -843,7 +843,7 @@ class BJTUSimulationGUI:
 
         # ---- 友情链接（闪烁动画） ----
         link_frame = tk.Frame(self.login_frame, bg=self.BG)
-        link_frame.pack(pady=(2, 4))
+        link_frame.pack(pady=(2, 12))
         tk.Label(link_frame, text=self.t("friendly_links") + ": ", font=(SYSTEM_FONT, 9),
                  bg=self.BG, fg=self.BLUE_DARK).pack(side="left")
 
@@ -1070,7 +1070,15 @@ class BJTUSimulationGUI:
                                         active_bg="#D35400", active_fg=self.WHITE,
                                         command=self._run_peak_shift,
                                         padx=10, pady=3)
-        self.btn_peak.grid(row=2, column=0, columnspan=2, padx=5, pady=8)
+        self.btn_peak.grid(row=2, column=0, padx=5, pady=8, sticky="w")
+
+        self.stop_peak_btn = self._make_btn(self.lf_other, "⏹",
+                                             font=(SYSTEM_FONT, 10, "bold"),
+                                             bg="#CC0000", fg=self.WHITE,
+                                             active_bg="#990000", active_fg=self.WHITE,
+                                             command=self._force_stop_peak,
+                                             padx=6, pady=3)
+        self.stop_peak_btn.grid(row=2, column=1, padx=(2, 5), pady=8, sticky="w")
         tip_peak = tk.Label(self.lf_other, text="?", font=(SYSTEM_FONT, 9, "bold"),
                             bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow", width=2)
         tip_peak.grid(row=2, column=2, padx=(0, 5), pady=8, sticky="w")
@@ -1282,7 +1290,7 @@ class BJTUSimulationGUI:
         dlg.grab_set()
         dlg.update_idletasks()
         x = self.root.winfo_x() + (600 - W) // 2
-        y = self.root.winfo_y() + (690 - H) // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - H) // 2
         dlg.geometry(f"+{x}+{y}")
 
         # ---- 通用动画 Label 工厂 ----
@@ -1417,6 +1425,12 @@ class BJTUSimulationGUI:
         self._generate_captcha()
 
     def _local_login(self):
+        # 管理员弹窗 grab 激活时忽略回车，防止弹出"请选择身份"
+        if self.root.grab_current() is not None:
+            return
+        # 已登录状态下按回车直接忽略
+        if self.current_user is not None:
+            return
         role = self.role_var.get()
         account = self.entry_account.get().strip()
         password = self.entry_password.get()
@@ -1529,48 +1543,65 @@ class BJTUSimulationGUI:
 
     # ---------- 错峰对比 ----------
     def _run_peak_shift(self):
-        """在 GUI 中运行错峰对比分析并展示结果图"""
+        """在 GUI 中运行错峰对比分析并展示结果图（线程化，可强制停止）"""
         try:
-            from peak_shift import run_comparison, print_summary, plot_comparison
             students = int(self.entry_students.get())
-            # 使用当前参数跑对比
-            self.result_text.delete("1.0", tk.END)
-            self.result_text.insert(tk.END, "正在运行错峰对比分析...\n")
-            self.root.update()
+        except ValueError:
+            messagebox.showwarning(self.t("param_invalid"), self.t("students_must_int"))
+            return
 
-            results = run_comparison([0, 5, 10, 15, 20, 30], students, 300, verbose=False)
-            print_summary(results)
-            plot_comparison(results, "peak_shift")
+        self.result_text.delete("1.0", tk.END)
+        self.result_text.insert(tk.END, "正在运行错峰对比分析...\n")
+        self.btn_peak._lbl.config(text="⏳ 运行中…")
+        self.stop_btn.pack(side="left", padx=2, pady=2)
+        self.root.update()
 
-            self.result_text.delete("1.0", tk.END)
-            self.result_text.insert(tk.END, "=" * 50 + "\n")
-            self.result_text.insert(tk.END, "  错峰下课方案对比 — 完成\n")
-            self.result_text.insert(tk.END, "=" * 50 + "\n\n")
+        def run_in_thread():
+            try:
+                from peak_shift import run_comparison, print_summary, plot_comparison
+                results = run_comparison([0, 5, 10, 15, 20, 30], students, 300, verbose=False)
+                print_summary(results)
+                plot_comparison(results, "peak_shift")
 
-            baseline = results[0]['max_queue'] if results else 1
-            self.result_text.insert(tk.END,
-                f"{'方案':<14} {'最大排队':>8} {'平均等待':>8} {'排队峰降':>8}\n")
-            self.result_text.insert(tk.END, "-" * 42 + "\n")
-            for r in results:
-                label = "同时下课" if r['gap_minutes'] == 0 else f"错峰{r['gap_minutes']}分钟"
-                reduction = (baseline - r['max_queue']) / max(baseline, 1) * 100
-                red_str = f"↓{reduction:.0f}%" if r['gap_minutes'] > 0 else "-"
-                self.result_text.insert(tk.END,
-                    f"{label:<14} {r['max_queue']:>8} {r['avg_wait']:>8.1f} {red_str:>8}\n")
+                def _show_result():
+                    self.stop_btn.pack_forget()
+                    self.btn_peak._lbl.config(text=self.t("peak_shift_btn"))
+                    self.result_text.delete("1.0", tk.END)
+                    self.result_text.insert(tk.END, "=" * 50 + "\n")
+                    self.result_text.insert(tk.END, "  错峰下课方案对比 — 完成\n")
+                    self.result_text.insert(tk.END, "=" * 50 + "\n\n")
 
-            # 打开生成的图表
-            img_path = os.path.join(os.path.dirname(__file__), "peak_shift_comparison.png")
-            if os.path.exists(img_path):
-                if sys.platform == "darwin":
-                    os.system(f'open "{img_path}"')
-                elif sys.platform == "win32":
-                    os.system(f'start "" "{img_path}"')
-                else:
-                    os.system(f'xdg-open "{img_path}"')
-                self.result_text.insert(tk.END, "\n对比图表已在外部窗口中打开\n")
-        except Exception as e:
-            self.result_text.delete("1.0", tk.END)
-            self.result_text.insert(tk.END, f"错峰对比失败:\n{e}")
+                    baseline = results[0]['max_queue'] if results else 1
+                    self.result_text.insert(tk.END,
+                        f"{'方案':<14} {'最大排队':>8} {'平均等待':>8} {'排队峰降':>8}\n")
+                    self.result_text.insert(tk.END, "-" * 42 + "\n")
+                    for r in results:
+                        label = "同时下课" if r['gap_minutes'] == 0 else f"错峰{r['gap_minutes']}分钟"
+                        reduction = (baseline - r['max_queue']) / max(baseline, 1) * 100
+                        red_str = f"↓{reduction:.0f}%" if r['gap_minutes'] > 0 else "-"
+                        self.result_text.insert(tk.END,
+                            f"{label:<14} {r['max_queue']:>8} {r['avg_wait']:>8.1f} {red_str:>8}\n")
+
+                    # 打开生成的图表
+                    img_path = os.path.join(os.path.dirname(__file__), "peak_shift_comparison.png")
+                    if os.path.exists(img_path):
+                        if sys.platform == "darwin":
+                            os.system(f'open "{img_path}"')
+                        elif sys.platform == "win32":
+                            os.system(f'start "" "{img_path}"')
+                        else:
+                            os.system(f'xdg-open "{img_path}"')
+                        self.result_text.insert(tk.END, "\n对比图表已在外部窗口中打开\n")
+                self.root.after(0, _show_result)
+            except Exception as e:
+                self.root.after(0, lambda: [
+                    self.stop_btn.pack_forget(),
+                    self.btn_peak._lbl.config(text=self.t("peak_shift_btn")),
+                    self.result_text.delete("1.0", tk.END),
+                    self.result_text.insert(tk.END, f"错峰对比失败:\n{e}")
+                ])
+        thread = threading.Thread(target=run_in_thread, daemon=True)
+        thread.start()
 
     # ---------- 用户管理 ----------
     def _open_user_file(self):
@@ -1701,6 +1732,16 @@ class BJTUSimulationGUI:
         self.result_text.insert(tk.END, self.t("sim_force_stopped"))
         self.launch_btn._lbl.config(text=self.t("launch_btn"))
         self.launch_btn.config(cursor="hand2")
+
+    def _force_stop_peak(self):
+        """强制关闭错峰对比生成的 Matplotlib 图表窗口"""
+        try:
+            import matplotlib.pyplot as plt
+            plt.close('all')
+        except Exception:
+            pass
+        self.result_text.delete("1.0", tk.END)
+        self.result_text.insert(tk.END, "错峰对比已被强制停止\n")
 
     # ---------- 启动仿真 ----------
     def _launch_simulation(self):

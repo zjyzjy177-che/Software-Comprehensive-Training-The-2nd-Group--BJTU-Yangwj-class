@@ -8,7 +8,8 @@
       "Bash(git config *)",
       "Bash(git check-ignore *)",
       "Bash(curl -sI https://github.com --connect-timeout 10)",
-      "Bash(netstat -ano)"
+      "Bash(netstat -ano)",
+      "Bash(python tests/test_member_c.py)"
     ]
   }
 }
