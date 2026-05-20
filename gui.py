@@ -1077,7 +1077,7 @@ class BJTUSimulationGUI:
                                              font=(SYSTEM_FONT, 10, "bold"),
                                              bg="#CC0000", fg=self.WHITE,
                                              active_bg="#990000", active_fg=self.WHITE,
-                                             command=self._force_stop_peak,
+                                             command=self._force_stop_simulation,
                                              padx=6, pady=3)
         self.stop_peak_btn.grid(row=2, column=1, padx=(2, 5), pady=8, sticky="w")
         tip_peak = tk.Label(self.lf_other, text="?", font=(SYSTEM_FONT, 9, "bold"),
