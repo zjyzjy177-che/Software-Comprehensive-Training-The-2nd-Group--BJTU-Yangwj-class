@@ -587,6 +587,7 @@ class BJTUSimulationGUI:
         self.lang = "zh_CN"
         self._flash_job = None
         self._config_data = None  # 从 JSON 加载的完整配置（含坐标覆盖）
+        self._peak_stop_requested = False  # 错峰对比中断标志
 
         # 先创建 root 以便 _detect_system_font 可用
         self.root = tk.Tk()
@@ -1550,6 +1551,7 @@ class BJTUSimulationGUI:
             messagebox.showwarning(self.t("param_invalid"), self.t("students_must_int"))
             return
 
+        self._peak_stop_requested = False
         self.result_text.delete("1.0", tk.END)
         self.result_text.insert(tk.END, "正在运行错峰对比分析...\n")
         self.btn_peak._lbl.config(text="⏳ 运行中…")
@@ -1560,14 +1562,28 @@ class BJTUSimulationGUI:
             try:
                 from peak_shift import run_comparison, print_summary
                 results = run_comparison([0, 5, 10, 15, 20, 30], students, 300, verbose=False)
+                if self._peak_stop_requested:
+                    return  # 用户在计算中被中断
                 print_summary(results)
-                # Matplotlib 绘图必须在主线程执行，通过 after 投递
+
                 def _finish():
+                    if self._peak_stop_requested:
+                        self.stop_btn.pack_forget()
+                        self.btn_peak._lbl.config(text=self.t("peak_shift_btn"))
+                        return
                     self.stop_btn.pack_forget()
                     self.btn_peak._lbl.config(text=self.t("peak_shift_btn"))
                     try:
-                        from peak_shift import plot_comparison
-                        plot_comparison(results, "peak_shift")
+                        # 切到 Agg 后端避免 macOS TkAgg 与 GUI 冲突
+                        import matplotlib.pyplot as _plt
+                        _plt.close('all')
+                        prev_backend = _plt.get_backend()
+                        _plt.switch_backend('Agg')
+                        try:
+                            from peak_shift import plot_comparison
+                            plot_comparison(results, "peak_shift")
+                        finally:
+                            _plt.switch_backend(prev_backend)
                     except Exception as pe:
                         self.result_text.insert(tk.END, f"\n图表生成失败: {pe}\n")
                     self.result_text.delete("1.0", tk.END)
@@ -1724,27 +1740,21 @@ class BJTUSimulationGUI:
 
     # ---------- 强制停止仿真 ----------
     def _force_stop_simulation(self):
-        """强制关闭 Matplotlib 可视化窗口并终止仿真"""
+        """强制关闭 Matplotlib 可视化窗口 / 中断错峰对比"""
         try:
             import matplotlib.pyplot as plt
             plt.close('all')
         except Exception:
             pass
+        # 设置错峰中断标志（如果正在运行）
+        self._peak_stop_requested = True
         self.stop_btn.pack_forget()
         self.result_text.delete("1.0", tk.END)
         self.result_text.insert(tk.END, self.t("sim_force_stopped"))
         self.launch_btn._lbl.config(text=self.t("launch_btn"))
         self.launch_btn.config(cursor="hand2")
-
-    def _force_stop_peak(self):
-        """强制关闭错峰对比生成的 Matplotlib 图表窗口"""
-        try:
-            import matplotlib.pyplot as plt
-            plt.close('all')
-        except Exception:
-            pass
-        self.result_text.delete("1.0", tk.END)
-        self.result_text.insert(tk.END, "错峰对比已被强制停止\n")
+        if hasattr(self, 'btn_peak'):
+            self.btn_peak._lbl.config(text=self.t("peak_shift_btn"))
 
     # ---------- 启动仿真 ----------
     def _launch_simulation(self):
