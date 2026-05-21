@@ -117,6 +117,7 @@ LANG_TEXTS = {
         "sim_failed": "仿真运行失败",
         "sim_force_stopped": "仿真已被强制停止",
         "stop_btn": "⏹ 强制停止",
+        "peak_shift_btn": "错峰对比分析",
         "start_simulation": "启动仿真",
         "stats_title": "【统计数据】",
         "not_login_warn": "未登录",
@@ -232,6 +233,7 @@ LANG_TEXTS = {
         "sim_failed": "模擬運行失敗",
         "sim_force_stopped": "模擬已被強制停止",
         "stop_btn": "⏹ 強制停止",
+        "peak_shift_btn": "錯峰對比分析",
         "start_simulation": "啟動模擬",
         "stats_title": "【統計數據】",
         "not_login_warn": "未登錄",
@@ -347,6 +349,7 @@ LANG_TEXTS = {
         "sim_failed": "Simulation Failed",
         "sim_force_stopped": "Simulation force stopped",
         "stop_btn": "⏹ Force Stop",
+        "peak_shift_btn": "Peak Shift Comparison",
         "start_simulation": "Launch Simulation",
         "stats_title": "[Statistics]",
         "not_login_warn": "Not Logged In",
@@ -1065,7 +1068,7 @@ class BJTUSimulationGUI:
         self.lbl_config_path.grid(row=1, column=1, padx=5, pady=5, sticky="w")
 
         # 错峰对比按钮
-        self.btn_peak = self._make_btn(self.lf_other, "错峰对比分析",
+        self.btn_peak = self._make_btn(self.lf_other, self.t("peak_shift_btn"),
                                         font=(SYSTEM_FONT, 10, "bold"),
                                         bg="#E67E22", fg=self.WHITE,
                                         active_bg="#D35400", active_fg=self.WHITE,
@@ -1175,6 +1178,7 @@ class BJTUSimulationGUI:
         self.btn_browse._lbl.config(text=self.t("browse_config"))
         self.launch_btn._lbl.config(text=self.t("launch_btn"))
         self.stop_btn._lbl.config(text=self.t("stop_btn"))
+        self.btn_peak._lbl.config(text=self.t("peak_shift_btn"))
         self.lf_result.config(text=self.t("result_label"))
 
     # ====================== 闪烁动画 ======================
@@ -1544,7 +1548,7 @@ class BJTUSimulationGUI:
 
     # ---------- 错峰对比 ----------
     def _run_peak_shift(self):
-        """在 GUI 中运行错峰对比分析并展示结果图（线程化，可强制停止）"""
+        """在 GUI 中运行错峰对比分析并展示结果图（线程化，逐 gap 检查中断标志）"""
         try:
             students = int(self.entry_students.get())
         except ValueError:
@@ -1558,12 +1562,27 @@ class BJTUSimulationGUI:
         self.stop_btn.pack(side="left", padx=2, pady=2)
         self.root.update()
 
+        GAP_VALUES = [0, 5, 10, 15, 20, 30]
+
         def run_in_thread():
             try:
-                from peak_shift import run_comparison, print_summary
-                results = run_comparison([0, 5, 10, 15, 20, 30], students, 300, verbose=False)
+                from peak_shift import run_staggered_simulation, print_summary
+                # 逐 gap 运行，每轮检查中断标志（解决大数据量下停止无响应）
+                results = []
+                for gap in GAP_VALUES:
+                    if self._peak_stop_requested:
+                        return
+                    label = "同时下课" if gap == 0 else f"错峰 {gap} 分钟"
+                    if len(GAP_VALUES) <= 1:
+                        pass  # 不打印进度
+                    result = run_staggered_simulation(gap, students, 300)
+                    results.append(result)
+                    self.root.after(0,
+                        lambda l=label, r=result: self.result_text.insert(
+                            tk.END, f"  {l}: 最大排队={r['max_queue']}, 平均等待={r['avg_wait']:.1f}\n"))
+
                 if self._peak_stop_requested:
-                    return  # 用户在计算中被中断
+                    return
                 print_summary(results)
 
                 def _finish():
@@ -1574,7 +1593,6 @@ class BJTUSimulationGUI:
                     self.stop_btn.pack_forget()
                     self.btn_peak._lbl.config(text=self.t("peak_shift_btn"))
                     try:
-                        # 切到 Agg 后端避免 macOS TkAgg 与 GUI 冲突
                         import matplotlib.pyplot as _plt
                         _plt.close('all')
                         prev_backend = _plt.get_backend()
