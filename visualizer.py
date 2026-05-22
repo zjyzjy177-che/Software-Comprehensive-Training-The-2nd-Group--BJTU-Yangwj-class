@@ -218,10 +218,13 @@ class CanteenVisualizer:
 
         # 图形元素集合
         self.student_points = []    # 学生点对象
-        self.canteen_rects = []     # 食堂矩形对象
+        self.canteen_rects = []     # 食堂标记
         self.queue_bars = []        # 排队柱状图
         self.stat_lines = []        # 统计曲线
         self.text_labels = []       # 文本标签
+        self._clock_patches = []    # 钟表 patches
+        self._clock_lines = []      # 钟表线条
+        self._clock_texts = []      # 钟表文字
 
         # 数据历史（用于统计图）
         self.tick_history = []      # 周期历史
@@ -252,6 +255,12 @@ class CanteenVisualizer:
         self.last_update_time = 0
         self.update_interval = 0.1  # 最小更新间隔（秒）
         self.max_history_length = 200  # 最大历史记录长度
+
+        # 地图缩放与拖动
+        self.zoom_level = 1.0
+        self.pan_x, self.pan_y = 0.0, 0.0
+        self._drag_start = None
+        self._view_mode = 0  # 0=合并 1=地图 2=图表
 
         # 初始化Matplotlib
         self._setup_matplotlib()
@@ -402,19 +411,12 @@ class CanteenVisualizer:
         # 子图4：信息面板（左下 — 仿真数据 + 食堂排队详情，合并在一个 text 中）
         ax_info = self.fig.add_subplot(gs[1, 0])
         ax_info.axis('off')
+        self.canteen_info_ax = ax_info  # 供视图切换引用
 
         self.info_text = ax_info.text(0.02, 0.98, _viz_t("info_loading", self.lang),
                                      transform=ax_info.transAxes,
                                      fontsize=8.5, verticalalignment='top',
                                      color=self.colors['text'])
-
-        # BJT 时间显示（地图左上角）
-        self.time_text = self.ax_map.text(0.02, 0.98, "",
-                                          transform=self.ax_map.transAxes,
-                                          fontsize=11, fontweight='bold',
-                                          color='#2C3E50', va='top',
-                                          bbox=dict(boxstyle='round,pad=0.3',
-                                                   facecolor='white', alpha=0.85))
 
         # 添加图例（在地图子图上）
         self._add_legend()
@@ -453,22 +455,12 @@ class CanteenVisualizer:
                           fontsize=8, framealpha=0.9)
 
     def _setup_events(self) -> None:
-        """
-        设置交互事件处理
-
-        支持功能：
-        1. 空格键：暂停/继续动画
-        2. 上/下键：调整动画速度
-        3. 鼠标点击：显示详细信息
-        4. 窗口关闭：清理资源
-        """
-        # 连接键盘事件
+        """设置交互事件：键盘 + 鼠标缩放/拖动 + 视图切换"""
         self.fig.canvas.mpl_connect('key_press_event', self._on_key_press)
-
-        # 连接鼠标事件
-        self.fig.canvas.mpl_connect('button_press_event', self._on_mouse_click)
-
-        # 连接关闭事件
+        self.fig.canvas.mpl_connect('button_press_event', self._on_mouse_press)
+        self.fig.canvas.mpl_connect('button_release_event', self._on_mouse_release)
+        self.fig.canvas.mpl_connect('motion_notify_event', self._on_mouse_move)
+        self.fig.canvas.mpl_connect('scroll_event', self._on_scroll)
         self.fig.canvas.mpl_connect('close_event', self._on_close)
 
     def _on_key_press(self, event):
@@ -494,19 +486,70 @@ class CanteenVisualizer:
             self._update_info_text(f"{_viz_t('info_speed', self.lang)}: {self.animation_speed}ms")
 
         elif event.key == 'r':
-            # R键：重置视图
-            self.ax_map.set_xlim(self.x_min - 10, self.x_max + 10)
-            self.ax_map.set_ylim(self.y_min - 10, self.y_max + 10)
-            self.fig.canvas.draw_idle()
+            # R键：重置视图 + 缩放
+            self.zoom_level = 1.0
+            self.pan_x, self.pan_y = 0.0, 0.0
+            self._apply_map_view()
             self._update_info_text(_viz_t("view_reset", self.lang))
 
-    def _on_mouse_click(self, event):
-        """鼠标点击事件处理"""
+        elif event.key == 'v':
+            # V键：切换视图模式 0→1→2→0
+            self._view_mode = (self._view_mode + 1) % 3
+            modes = ["合并视图", "纯地图", "纯图表"]
+            self._update_info_text(f"视图: {modes[self._view_mode]}")
+            self._apply_view_mode()
+
+    # ---------- 鼠标缩放/拖动 ----------
+    def _on_scroll(self, event):
         if event.inaxes == self.ax_map:
-            # 在地图子图上点击
-            x, y = event.xdata, event.ydata
-            print(f"点击坐标: ({x:.1f}, {y:.1f})")
-            # 这里可以添加显示详细信息的功能
+            if event.button == 'up':
+                self.zoom_level = min(self.zoom_level * 1.15, 5.0)
+            else:
+                self.zoom_level = max(self.zoom_level / 1.15, 0.3)
+            self._apply_map_view()
+
+    def _on_mouse_press(self, event):
+        if event.inaxes == self.ax_map and event.button == 1:
+            self._drag_start = (event.xdata, event.ydata)
+
+    def _on_mouse_release(self, event):
+        self._drag_start = None
+
+    def _on_mouse_move(self, event):
+        if self._drag_start and event.inaxes == self.ax_map and event.xdata and event.ydata:
+            dx = self._drag_start[0] - event.xdata
+            dy = self._drag_start[1] - event.ydata
+            self.pan_x += dx
+            self.pan_y += dy
+            self._drag_start = (event.xdata, event.ydata)
+            self._apply_map_view()
+
+    def _apply_map_view(self):
+        """根据 zoom_level 和 pan 更新地图范围"""
+        hw = (self.map_width / self.zoom_level) / 2
+        hh = (self.map_height / self.zoom_level) / 2
+        cx = (self.x_min + self.x_max) / 2 + self.pan_x
+        cy = (self.y_min + self.y_max) / 2 + self.pan_y
+        self.ax_map.set_xlim(cx - hw, cx + hw)
+        self.ax_map.set_ylim(cy - hh, cy + hh)
+        self.fig.canvas.draw_idle()
+
+    def _apply_view_mode(self):
+        """切换视图布局"""
+        for ax in [self.ax_stats, self.ax_pie, self.ax_map, self.canteen_info_ax]:
+            if ax:
+                ax.set_visible(True)
+        if self._view_mode == 1:  # 纯地图：隐藏图表
+            self.ax_stats.set_visible(False)
+            self.ax_pie.set_visible(False)
+            self.canteen_info_ax.set_visible(False)
+        elif self._view_mode == 2:  # 纯图表：隐藏地图
+            self.ax_map.set_visible(False)
+        # mode 0 = 全部显示（默认）
+        self.fig.canvas.draw_idle()
+
+    def _on_mouse_click(self, event):
+        pass  # 由 press/release 处理拖动
 
     def _on_close(self, event):
         """窗口关闭事件处理"""
@@ -526,6 +569,70 @@ class CanteenVisualizer:
         """
         self.info_text.set_text(message)
         self.fig.canvas.draw_idle()
+
+    def _draw_clock(self, tick: int):
+        """在地图右上角绘制粉色模拟钟表 + 数字时钟"""
+        import math
+        from matplotlib.patches import Wedge
+
+        # 钟表位置（地图坐标系右上角）
+        view_xlim = self.ax_map.get_xlim()
+        view_ylim = self.ax_map.get_ylim()
+        cx = view_xlim[1] - 30
+        cy = view_ylim[1] - 30
+        r = 22
+
+        # 粉色钟面
+        face = plt.Circle((cx, cy), r, facecolor='#FFF0F5', edgecolor='#FF69B4', linewidth=2, zorder=100)
+        self.ax_map.add_patch(face)
+        self._clock_patches.append(face)
+
+        # 刻度线 + 数字
+        for i in range(12):
+            angle = math.radians(i * 30 - 90)
+            inner = r * 0.82
+            outer = r * 0.95
+            tick = plt.Line2D([cx + inner * math.cos(angle), cx + outer * math.cos(angle)],
+                              [cy + inner * math.sin(angle), cy + outer * math.sin(angle)],
+                              color='#FF69B4', linewidth=1.5, zorder=101)
+            self.ax_map.add_line(tick)
+            self._clock_lines.append(tick)
+
+        # 时间计算（11:50 起，1tick=30s）
+        total_sec = tick * 30
+        h = (11 + (50 + total_sec // 60) // 60) % 12
+        m = (50 + total_sec // 60) % 60
+
+        # 时针（短粗）
+        h_angle = math.radians((h % 12) * 30 + m * 0.5 - 90)
+        h_len = r * 0.5
+        h_hand = plt.Line2D([cx, cx + h_len * math.cos(h_angle)],
+                            [cy, cy + h_len * math.sin(h_angle)],
+                            color='#FF1493', linewidth=3, zorder=102)
+        self.ax_map.add_line(h_hand)
+        self._clock_lines.append(h_hand)
+
+        # 分针（长细）
+        m_angle = math.radians(m * 6 - 90)
+        m_len = r * 0.72
+        m_hand = plt.Line2D([cx, cx + m_len * math.cos(m_angle)],
+                            [cy, cy + m_len * math.sin(m_angle)],
+                            color='#FF1493', linewidth=1.5, zorder=102)
+        self.ax_map.add_line(m_hand)
+        self._clock_lines.append(m_hand)
+
+        # 中心点
+        dot = plt.Circle((cx, cy), 2, facecolor='#FF1493', edgecolor='none', zorder=103)
+        self.ax_map.add_patch(dot)
+        self._clock_patches.append(dot)
+
+        # 数字时钟（钟表下方）
+        digital = self.ax_map.text(cx, cy - r - 10, f"BJT {h:02d}:{m:02d}",
+                                   fontsize=9, fontweight='bold', color='#FF1493',
+                                   ha='center', va='top', zorder=100,
+                                   bbox=dict(boxstyle='round,pad=0.2', facecolor='#FFF0F5',
+                                            edgecolor='#FF69B4', alpha=0.9))
+        self._clock_texts.append(digital)
 
     def draw_frame(self, tick: int, students: List[Student], canteens: List[Canteen]) -> None:
         """
@@ -570,12 +677,8 @@ class CanteenVisualizer:
         # 更新信息面板
         self._update_info_panel(tick, students, canteens)
 
-        # 更新 BJT 时间显示（假设 11:50 开始，1 tick ≈ 30 秒）
-        base_h, base_m = 11, 50
-        total_seconds = tick * 30
-        current_h = base_h + (base_m + total_seconds // 60) // 60
-        current_m = (base_m + total_seconds // 60) % 60
-        self.time_text.set_text(f"BJT {current_h:02d}:{current_m:02d}")
+        # 粉色模拟钟表 + 数字时钟
+        self._draw_clock(tick)
 
         # 刷新画布
         self.fig.canvas.draw_idle()
@@ -605,6 +708,20 @@ class CanteenVisualizer:
             if lbl in self.ax_map.texts:
                 lbl.remove()
         self.text_labels.clear()
+
+        # 清除钟表
+        for p in self._clock_patches:
+            if p in self.ax_map.patches:
+                p.remove()
+        self._clock_patches.clear()
+        for l in self._clock_lines:
+            if l in self.ax_map.lines:
+                l.remove()
+        self._clock_lines.clear()
+        for t in self._clock_texts:
+            if t in self.ax_map.texts:
+                t.remove()
+        self._clock_texts.clear()
 
     def _draw_canteens(self, canteens: List[Canteen]) -> None:
         """
