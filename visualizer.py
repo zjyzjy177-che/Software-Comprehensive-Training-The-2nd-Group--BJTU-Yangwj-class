@@ -329,7 +329,7 @@ class CanteenVisualizer:
 
         # 背景底图（淡化为水印）
         try:
-            bg_path = os.path.join(os.path.dirname(__file__), 'assets', 'SHIJIZHONG_BJTU.JPG')
+            bg_path = os.path.join(os.path.dirname(__file__), 'assets', 'SHIJIZHONG_BJTU.jpg')
             if os.path.exists(bg_path):
                 bg_img = plt.imread(bg_path)
                 bg_ax = self.fig.add_axes([0, 0, 1, 1], zorder=-100)
