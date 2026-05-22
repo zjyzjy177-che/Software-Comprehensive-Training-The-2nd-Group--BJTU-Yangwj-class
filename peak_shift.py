@@ -82,9 +82,12 @@ def _get_spawn_waves(total_students: int, gap_minutes: int, total_ticks: int) ->
 
 
 def run_staggered_simulation(gap_minutes: int, base_students: int = 200,
-                             total_ticks: int = 300) -> Dict[str, Any]:
+                             total_ticks: int = 300,
+                             is_cancelled=None) -> Dict[str, Any]:
     """
     运行一次真错峰仿真：分批在不同 tick 注入学生
+
+    is_cancelled: 可选回调 () -> bool，返回 True 时中止仿真
     """
     import random
     from engine import SimulationEngine
@@ -113,9 +116,13 @@ def run_staggered_simulation(gap_minutes: int, base_students: int = 200,
             positions.append(pos)
         pending_spawns[tick_offset] = positions
 
-    # 运行仿真，在指定 tick 注入学生
+    # 运行仿真，在指定 tick 注入学生（每 tick 检查取消标志）
     student_id_counter = 0
     for tick in range(total_ticks):
+        if is_cancelled and is_cancelled():
+            return {'gap_minutes': gap_minutes, 'max_queue': 0, 'avg_wait': 0,
+                    'total_served': 0, 'total_generated': 0, 'queue_history': [],
+                    'cancelled': True}
         # 本 tick 该注入的学生
         if tick in pending_spawns:
             for pos in pending_spawns[tick]:

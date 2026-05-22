@@ -1575,8 +1575,11 @@ class BJTUSimulationGUI:
                     label = "同时下课" if gap == 0 else f"错峰 {gap} 分钟"
                     if len(GAP_VALUES) <= 1:
                         pass  # 不打印进度
-                    result = run_staggered_simulation(gap, students, 300)
+                    result = run_staggered_simulation(gap, students, 300,
+                                                        is_cancelled=lambda: self._peak_stop_requested)
                     results.append(result)
+                    if result.get('cancelled'):
+                        return  # 仿真内部被中断
                     self.root.after(0,
                         lambda l=label, r=result: self.result_text.insert(
                             tk.END, f"  {l}: 最大排队={r['max_queue']}, 平均等待={r['avg_wait']:.1f}\n"))
