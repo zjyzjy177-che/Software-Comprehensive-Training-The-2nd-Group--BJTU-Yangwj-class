@@ -42,10 +42,11 @@ else:
         matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
 from matplotlib.animation import FuncAnimation
-from matplotlib.patches import Circle, Rectangle, Polygon
+from matplotlib.patches import Circle, Rectangle, Polygon, Wedge
+from matplotlib.lines import Line2D
 import numpy as np
+import math
 from typing import List, Dict, Tuple, Any, Optional
 from models import Student, Canteen, StudentState
 
@@ -222,9 +223,6 @@ class CanteenVisualizer:
         self.queue_bars = []        # 排队柱状图
         self.stat_lines = []        # 统计曲线
         self.text_labels = []       # 文本标签
-        self._clock_patches = []    # 钟表 patches
-        self._clock_lines = []      # 钟表线条
-        self._clock_texts = []      # 钟表文字
 
         # 数据历史（用于统计图）
         self.tick_history = []      # 周期历史
@@ -298,54 +296,19 @@ class CanteenVisualizer:
         matplotlib.rcParams['xtick.labelsize'] = 8
         matplotlib.rcParams['ytick.labelsize'] = 8
 
-        # 检测操作系统并配置中文字体
         system = platform.system()
-        font_path = None
-
-        if system == 'Darwin':  # macOS
-            # macOS常用中文字体
-            font_candidates = [
-                '/System/Library/Fonts/PingFang.ttc',      # PingFang
-                '/System/Library/Fonts/STHeiti Light.ttc', # 黑体
-                '/System/Library/Fonts/STHeiti Medium.ttc',
-                '/Library/Fonts/Arial Unicode.ttf',        # Arial Unicode
-            ]
+        if system == 'Darwin':
+            _fonts = ['Microsoft YaHei', 'PingFang SC', 'Heiti SC', 'sans-serif']
         elif system == 'Windows':
-            # Windows常用中文字体
-            font_candidates = [
-                'C:\\Windows\\Fonts\\msyh.ttc',           # 微软雅黑
-                'C:\\Windows\\Fonts\\simhei.ttf',         # 黑体
-                'C:\\Windows\\Fonts\\simsun.ttc',         # 宋体
-            ]
-        else:  # Linux及其他
-            # Linux常用中文字体
-            font_candidates = [
-                '/usr/share/fonts/wenquanyi/wqy-microhei.ttc',  # 文泉驿微米黑
-                '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc',
-                '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
-            ]
-
-        # 尝试加载字体
-        for candidate in font_candidates:
-            if os.path.exists(candidate):
-                font_path = candidate
-                break
-
-        if font_path:
-            try:
-                # 添加字体到Matplotlib
-                font_prop = fm.FontProperties(fname=font_path)
-                matplotlib.rcParams['font.sans-serif'] = [font_prop.get_name()]
-                matplotlib.rcParams['axes.unicode_minus'] = False
-                print(f"成功加载中文字体: {font_path}")
-            except Exception as e:
-                print(f"警告：加载字体失败 {font_path}: {e}")
-                print("将使用默认字体，中文可能显示为方框")
+            _fonts = ['Microsoft YaHei', 'SimHei', 'sans-serif']
         else:
-            print("警告：未找到中文字体，中文可能显示异常")
-            print("请安装中文字体或指定字体路径")
-
-        # 后端已在模块导入时设置（import pyplot 之前），此处无需再设
+            _fonts = ['WenQuanYi Micro Hei', 'Noto Sans CJK SC', 'sans-serif']
+        matplotlib.rcParams['font.sans-serif'] = _fonts
+        matplotlib.rcParams['font.family'] = 'sans-serif'
+        matplotlib.rcParams['font.weight'] = 'bold'
+        matplotlib.rcParams['axes.unicode_minus'] = False
+        # 数字时钟用 Courier New
+        matplotlib.rcParams['font.monospace'] = ['Courier New', 'Courier', 'monospace']
 
     def _create_figure(self, title: str) -> None:
         """
@@ -363,6 +326,17 @@ class CanteenVisualizer:
         # 创建图形窗口
         self.fig = plt.figure(figsize=(14, 8), facecolor=self.colors['background'])
         self.fig.suptitle(_viz_t("window_title", self.lang), fontsize=16, fontweight='bold', color=self.colors['text'])
+
+        # 背景底图（淡化为水印）
+        try:
+            bg_path = os.path.join(os.path.dirname(__file__), 'assets', 'SHIJIZHONG_BJTU.JPG')
+            if os.path.exists(bg_path):
+                bg_img = plt.imread(bg_path)
+                bg_ax = self.fig.add_axes([0, 0, 1, 1], zorder=-100)
+                bg_ax.imshow(bg_img, aspect='auto', alpha=0.22)
+                bg_ax.axis('off')
+        except Exception:
+            pass
 
         # 创建网格布局：2×2 经典布局
         gs = self.fig.add_gridspec(2, 2, width_ratios=[7, 3], height_ratios=[7, 3],
@@ -418,11 +392,35 @@ class CanteenVisualizer:
                                      fontsize=8.5, verticalalignment='top',
                                      color=self.colors['text'])
 
+        # 独立钟表 axes（图左上方）
+        self.ax_clock = self.fig.add_axes([0.005, 0.87, 0.08, 0.10], facecolor='none')
+        self.ax_clock.axis('off')
+
+        # 视图切换按钮（Figure 级别矩形块，标题栏下居中）
+        self._toggle_buttons = []
+        btn_names = ["地图", "折线图", "饼图", "综合"]
+        btn_colors = ['#E74C3C', '#3498DB', '#2ECC71', '#95A5A6']
+        for i, (name, color) in enumerate(zip(btn_names, btn_colors)):
+            x0, y0 = 0.83 + i * 0.04, 0.95
+            w, h = 0.048, 0.022
+            rect = Rectangle((x0, y0), w, h, facecolor=color, edgecolor='white',
+                            linewidth=1.5, transform=self.fig.transFigure, zorder=1000)
+            self.fig.patches.append(rect)
+            txt = self.fig.text(x0 + w/2, y0 + h/2, name, ha='center', va='center',
+                               fontsize=8, fontweight='bold', color='white', zorder=1001)
+            self._toggle_buttons.append((rect, txt, name))
+
         # 添加图例（在地图子图上）
         self._add_legend()
 
         # 调整布局
         self.fig.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
+
+        # 保存原始位置供视图切换
+        self._pos_map = self.ax_map.get_position()
+        self._pos_stats = self.ax_stats.get_position()
+        self._pos_pie = self.ax_pie.get_position()
+        self._pos_info = ax_info.get_position()
 
     def _add_legend(self) -> None:
         """
@@ -511,6 +509,15 @@ class CanteenVisualizer:
     def _on_mouse_press(self, event):
         if event.inaxes == self.ax_map and event.button == 1:
             self._drag_start = (event.xdata, event.ydata)
+        elif event.button == 1:
+            # 视图切换按钮
+            fx, fy = event.x / self.fig.bbox.width, event.y / self.fig.bbox.height
+            for rect, txt, name in self._toggle_buttons:
+                x0, y0 = rect.get_x(), rect.get_y()
+                w, h = rect.get_width(), rect.get_height()
+                if x0 <= fx <= x0 + w and y0 <= fy <= y0 + h:
+                    self._switch_to_view(name)
+                    return
 
     def _on_mouse_release(self, event):
         self._drag_start = None
@@ -525,7 +532,7 @@ class CanteenVisualizer:
             self._apply_map_view()
 
     def _apply_map_view(self):
-        """根据 zoom_level 和 pan 更新地图范围"""
+        """更新地图范围，先清旧标签再刷新（防拖动穿模）"""
         hw = (self.map_width / self.zoom_level) / 2
         hh = (self.map_height / self.zoom_level) / 2
         cx = (self.x_min + self.x_max) / 2 + self.pan_x
@@ -535,21 +542,76 @@ class CanteenVisualizer:
         self.fig.canvas.draw_idle()
 
     def _apply_view_mode(self):
-        """切换视图布局"""
-        for ax in [self.ax_stats, self.ax_pie, self.ax_map, self.canteen_info_ax]:
-            if ax:
+        """切换视图布局：0=合并 1=纯地图全屏 2=纯图�表全屏"""
+        if self._view_mode == 0:
+            # 合并视图：恢复原始 GridSpec 位置
+            self.ax_map.set_position(self._pos_map)
+            self.ax_stats.set_position(self._pos_stats)
+            self.ax_pie.set_position(self._pos_pie)
+            self.canteen_info_ax.set_position(self._pos_info)
+            for ax in [self.ax_map, self.ax_stats, self.ax_pie, self.canteen_info_ax]:
                 ax.set_visible(True)
-        if self._view_mode == 1:  # 纯地图：隐藏图表
+        elif self._view_mode == 1:
+            # 纯地图：地图占满整图
+            self.ax_map.set_position([0.05, 0.1, 0.90, 0.78])
+            self.ax_map.set_visible(True)
             self.ax_stats.set_visible(False)
             self.ax_pie.set_visible(False)
             self.canteen_info_ax.set_visible(False)
-        elif self._view_mode == 2:  # 纯图表：隐藏地图
+        elif self._view_mode == 2:
+            # 纯图表：统计图上，饼图+信息下
             self.ax_map.set_visible(False)
-        # mode 0 = 全部显示（默认）
+            self.canteen_info_ax.set_visible(False)
+            self.ax_stats.set_position([0.08, 0.52, 0.86, 0.36])
+            self.ax_pie.set_position([0.08, 0.08, 0.40, 0.38])
+            self.ax_stats.set_visible(True)
+            self.ax_pie.set_visible(True)
         self.fig.canvas.draw_idle()
 
+    def _switch_to_view(self, name):
+        """切换到指定视图：地图全屏 / 折线图全屏 / 饼图全屏 / 综合"""
+        all_axes = [self.ax_map, self.ax_stats, self.ax_pie, self.canteen_info_ax]
+        for ax in all_axes:
+            ax.set_visible(False)
+
+        if name == "地图":
+            self.ax_map.set_position([0.05, 0.1, 0.90, 0.78])
+            self.ax_map.set_visible(True)
+        elif name == "折线图":
+            self.ax_stats.set_position([0.08, 0.15, 0.86, 0.70])
+            self.ax_stats.set_visible(True)
+        elif name == "饼图":
+            self.ax_pie.set_position([0.15, 0.15, 0.70, 0.70])
+            self.canteen_info_ax.set_position([0.15, 0.05, 0.70, 0.08])
+            self.ax_pie.set_visible(True)
+            self.canteen_info_ax.set_visible(True)
+        else:  # 综合
+            self.ax_map.set_position(self._pos_map)
+            self.ax_stats.set_position(self._pos_stats)
+            self.ax_pie.set_position(self._pos_pie)
+            self.canteen_info_ax.set_position(self._pos_info)
+            for ax in all_axes:
+                ax.set_visible(True)
+
+        self._update_toggle_buttons()
+        self.fig.canvas.draw_idle()
+
+    def _update_toggle_buttons(self):
+        """根据当前可见面板高亮对应按钮"""
+        for rect, txt, name in self._toggle_buttons:
+            if name == "地图":
+                active = self.ax_map.get_visible()
+            elif name == "折线图":
+                active = self.ax_stats.get_visible()
+            elif name == "饼图":
+                active = self.ax_pie.get_visible()
+            else:
+                active = all(a.get_visible() for a in [self.ax_map, self.ax_stats, self.ax_pie])
+            rect.set_edgecolor('#FFD700' if active else 'white')
+            rect.set_linewidth(3 if active else 1.5)
+
     def _on_mouse_click(self, event):
-        pass  # 由 press/release 处理拖动
+        pass
 
     def _on_close(self, event):
         """窗口关闭事件处理"""
@@ -571,68 +633,62 @@ class CanteenVisualizer:
         self.fig.canvas.draw_idle()
 
     def _draw_clock(self, tick: int):
-        """在地图右上角绘制粉色模拟钟表 + 数字时钟"""
-        import math
-        from matplotlib.patches import Wedge
+        """在独立 axes 上绘制粉色模拟钟表 + 数字时钟"""
+        self.ax_clock.clear()
+        self.ax_clock.axis('off')
+        # axes 坐标 (0-1)，中心在 (0.5, 0.5)，r=0.42
+        cx, cy, r = 0.5, 0.5, 0.42
 
-        # 钟表位置（地图坐标系右上角）
-        view_xlim = self.ax_map.get_xlim()
-        view_ylim = self.ax_map.get_ylim()
-        cx = view_xlim[1] - 30
-        cy = view_ylim[1] - 30
-        r = 22
+        # 粉色方形钟面 + 钟面数字
+        sq = Rectangle((cx - r, cy - r), r * 2, r * 2, facecolor='#FFF0F5',
+                       edgecolor='#FF69B4', linewidth=2.5, transform=self.ax_clock.transAxes)
+        self.ax_clock.add_patch(sq)
 
-        # 粉色钟面
-        face = plt.Circle((cx, cy), r, facecolor='#FFF0F5', edgecolor='#FF69B4', linewidth=2, zorder=100)
-        self.ax_map.add_patch(face)
-        self._clock_patches.append(face)
-
-        # 刻度线 + 数字
         for i in range(12):
-            angle = math.radians(i * 30 - 90)
-            inner = r * 0.82
-            outer = r * 0.95
-            tick = plt.Line2D([cx + inner * math.cos(angle), cx + outer * math.cos(angle)],
-                              [cy + inner * math.sin(angle), cy + outer * math.sin(angle)],
-                              color='#FF69B4', linewidth=1.5, zorder=101)
-            self.ax_map.add_line(tick)
-            self._clock_lines.append(tick)
+            ang = math.radians(90 - i * 30)  # 顺时针，12点指向正上方
+            # 刻度线
+            xi, yi = r * 0.75, r * 0.92
+            self.ax_clock.add_line(Line2D(
+                [cx + xi * math.cos(ang), cx + yi * math.cos(ang)],
+                [cy + xi * math.sin(ang), cy + yi * math.sin(ang)],
+                color='#FF69B4', linewidth=2, transform=self.ax_clock.transAxes))
+            # 钟面数字
+            num = i if i != 0 else 12
+            nx, ny = cx + r * 0.58 * math.cos(ang), cy + r * 0.58 * math.sin(ang)
+            self.ax_clock.text(nx, ny, str(num), fontsize=7, fontweight='bold',
+                              color='#FF1493', ha='center', va='center',
+                              transform=self.ax_clock.transAxes)
 
-        # 时间计算（11:50 起，1tick=30s）
+        # 时间计算
         total_sec = tick * 30
-        h = (11 + (50 + total_sec // 60) // 60) % 12
+        h24 = (11 + (50 + total_sec // 60) // 60) % 24
+        h12 = h24 % 12
         m = (50 + total_sec // 60) % 60
+        h_display = h12 if h12 != 0 else 12
 
-        # 时针（短粗）
-        h_angle = math.radians((h % 12) * 30 + m * 0.5 - 90)
-        h_len = r * 0.5
-        h_hand = plt.Line2D([cx, cx + h_len * math.cos(h_angle)],
-                            [cy, cy + h_len * math.sin(h_angle)],
-                            color='#FF1493', linewidth=3, zorder=102)
-        self.ax_map.add_line(h_hand)
-        self._clock_lines.append(h_hand)
+        # 时针（顺时针: 90 - degrees）
+        ha = math.radians(90 - (h12 * 30 + m * 0.5))
+        self.ax_clock.add_line(Line2D([cx, cx + r * 0.42 * math.cos(ha)],
+                                      [cy, cy + r * 0.42 * math.sin(ha)],
+                                      color='#FF1493', linewidth=3.5, transform=self.ax_clock.transAxes))
 
-        # 分针（长细）
-        m_angle = math.radians(m * 6 - 90)
-        m_len = r * 0.72
-        m_hand = plt.Line2D([cx, cx + m_len * math.cos(m_angle)],
-                            [cy, cy + m_len * math.sin(m_angle)],
-                            color='#FF1493', linewidth=1.5, zorder=102)
-        self.ax_map.add_line(m_hand)
-        self._clock_lines.append(m_hand)
+        # 分针
+        ma = math.radians(90 - m * 6)
+        self.ax_clock.add_line(Line2D([cx, cx + r * 0.65 * math.cos(ma)],
+                                      [cy, cy + r * 0.65 * math.sin(ma)],
+                                      color='#FF1493', linewidth=2, transform=self.ax_clock.transAxes))
 
         # 中心点
-        dot = plt.Circle((cx, cy), 2, facecolor='#FF1493', edgecolor='none', zorder=103)
-        self.ax_map.add_patch(dot)
-        self._clock_patches.append(dot)
+        self.ax_clock.add_patch(Circle((cx, cy), 0.04, facecolor='#FF1493',
+                                       edgecolor='none', transform=self.ax_clock.transAxes))
 
-        # 数字时钟（钟表下方）
-        digital = self.ax_map.text(cx, cy - r - 10, f"BJT {h:02d}:{m:02d}",
-                                   fontsize=9, fontweight='bold', color='#FF1493',
-                                   ha='center', va='top', zorder=100,
-                                   bbox=dict(boxstyle='round,pad=0.2', facecolor='#FFF0F5',
-                                            edgecolor='#FF69B4', alpha=0.9))
-        self._clock_texts.append(digital)
+        # 数字时钟（Courier New 加粗）
+        self.ax_clock.text(cx, cy - r - 0.12, f"BJT {h_display:02d}:{m:02d}",
+                          fontsize=9, fontweight='bold', color='#FF1493',
+                          ha='center', va='top', transform=self.ax_clock.transAxes,
+                          family='monospace',
+                          bbox=dict(boxstyle='round,pad=0.2', facecolor='#FFF0F5',
+                                   edgecolor='#FF69B4', alpha=0.9))
 
     def draw_frame(self, tick: int, students: List[Student], canteens: List[Canteen]) -> None:
         """
@@ -709,28 +765,15 @@ class CanteenVisualizer:
                 lbl.remove()
         self.text_labels.clear()
 
-        # 清除钟表
-        for p in self._clock_patches:
-            if p in self.ax_map.patches:
-                p.remove()
-        self._clock_patches.clear()
-        for l in self._clock_lines:
-            if l in self.ax_map.lines:
-                l.remove()
-        self._clock_lines.clear()
-        for t in self._clock_texts:
-            if t in self.ax_map.texts:
-                t.remove()
-        self._clock_texts.clear()
-
     def _draw_canteens(self, canteens: List[Canteen]) -> None:
-        """
-        绘制食堂位置和状态
-
-        每个食堂显示为矩形，大小表示容量，颜色表示繁忙程度。
-        排队人数用柱状图叠加显示。
-        """
+        """绘制食堂位置和状态，文字裁剪到 axes 边界防穿模"""
+        xlim = self.ax_map.get_xlim()
+        ylim = self.ax_map.get_ylim()
+        bbox = self.ax_map.bbox
         for canteen in canteens:
+            x, y = canteen.position
+            if not (xlim[0] - 30 < x < xlim[1] + 30 and ylim[0] - 30 < y < ylim[1] + 30):
+                continue
             x, y = canteen.position
             queue_length = canteen.get_total_queue_length()
             capacity = canteen.capacity
@@ -748,11 +791,13 @@ class CanteenVisualizer:
             self.ax_map.add_patch(tri)
             self.canteen_rects.append(tri)
 
-            # 食堂名称标签（亮红加粗）
-            label = self.ax_map.text(x, y + tri_size + 4, canteen.name,
+            # 食堂名称标签（clip_box 防穿模）
+            ly = y + tri_size + 4
+            label = self.ax_map.text(x, ly, canteen.name,
                                     fontsize=self.font_size + 1,
                                     ha='center', va='bottom',
-                                    color='#FF2222', fontweight='bold')
+                                    color='#FF2222', fontweight='bold',
+                                    clip_on=True, clip_box=bbox)
             self.text_labels.append(label)
 
             # 绘制排队柱状图（三角右侧远处，数字在柱子右边）
@@ -768,12 +813,13 @@ class CanteenVisualizer:
                 self.ax_map.add_patch(bar)
                 self.queue_bars.append(bar)
 
-                # 排队人数标签（柱子右边）
+                # 排队人数标签（柱子右边，clip 防穿模）
                 queue_text = self.ax_map.text(bar_x + bar_width + 3, bar_bottom - bar_height/2,
                                              str(queue_length),
                                              fontsize=self.font_size + 2,
                                              ha='left', va='center',
-                                             color='#CC0000', fontweight='bold')
+                                             color='#CC0000', fontweight='bold',
+                                             clip_on=True, clip_box=self.ax_map.bbox)
                 self.text_labels.append(queue_text)
 
     def _draw_students(self, students: List[Student]) -> None:

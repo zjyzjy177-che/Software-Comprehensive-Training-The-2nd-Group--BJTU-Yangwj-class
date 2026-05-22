@@ -290,8 +290,8 @@ python main.py --config example_config.json
 - [x] 配置模块（config.py）：BJTU地图坐标、spawn_weights建筑权重、仿真参数（v1.7）
 - [x] 校园边界文件（campus_bounds.json）：32建筑坐标
 - [x] 策略模块（strategies.py）：多食堂选择算法（v2.0）
-- [x] 可视化模块（visualizer.py）：Matplotlib动画、BJT时钟、三语、黄三角食堂标（v2.9）
-- [x] GUI界面（gui.py）：Tkinter登录/管理员/参数配置/错峰对比按钮（v2.5）
+- [x] 可视化模块（visualizer.py）：Matplotlib动画、BJT时钟、三视图切换按钮、底图水印、缩放拖动（v3.0）
+- [x] GUI界面（gui.py）：Tkinter登录/管理员/参数配置/错峰对比按钮/ttk主题美化（v2.5）
 - [x] 错峰对比（peak_shift.py）：建筑分批注入，四图对比分析（v2.0）
 - [x] 跨平台兼容：Win/Mac/Linux字体+后端、PyInstaller打包支持
 - [x] 集成测试（test_integration.py）：24项全部通过
@@ -339,6 +339,16 @@ python main.py --config example_config.json
   张建宇 → release/ 打包 + 最终检查 + 提交
 ```
 
+### ✅ 新增完成（2026/05/22 — 部署阶段准备）
+- [x] visualizer.py v3.0：交互式图形界面全面升级
+  - 地图滚轮缩放（0.3x~5x）+ 左键拖动平移 + R 键重置
+  - 四按钮视图切换：地图全屏 / 折线图全屏 / 饼图 / 综合，金色高亮当前视图
+  - 粉色方形模拟钟表（时针+分针+钟面数字+数字时钟 Courier New）
+  - 世界钟背景底图水印（SHIJIZHONG_BJTU.JPG，alpha=0.22）
+  - 微软雅黑加粗字体（macOS 苹方回退）+ clip_box 裁剪防穿模
+  - 学生点缩小（8→5）+ 亮色系 + 排队/用餐 ±14 随机偏移
+  - 食堂黄三角标记 + 亮红名称 + 橙色排队柱右侧数字
+- [x] gui.py v2.5：ttk clam 主题美化 + 管理员弹窗 + 错峰对比按钮
 ### ✅ 新增完成（2026/05/15 — 错峰对比 + 部署准备）
 - [x] peak_shift.py v2.0：错峰下课方案对比模块
   - 按建筑权重分 4 波延迟注入学生，模拟真实错峰效果

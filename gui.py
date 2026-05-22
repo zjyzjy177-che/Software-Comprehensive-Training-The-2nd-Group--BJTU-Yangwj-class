@@ -596,6 +596,15 @@ class BJTUSimulationGUI:
         self.root = tk.Tk()
         global SYSTEM_FONT
         SYSTEM_FONT = _detect_system_font()
+        # ttk 现代主题
+        style = ttk.Style()
+        try:
+            style.theme_use('clam')
+        except Exception:
+            pass
+        style.configure('TButton', font=(SYSTEM_FONT, 10), padding=6)
+        style.configure('TCombobox', font=(SYSTEM_FONT, 10))
+        style.configure('TLabel', font=(SYSTEM_FONT, 10))
 
         self._build_ui()
         self._generate_captcha()
