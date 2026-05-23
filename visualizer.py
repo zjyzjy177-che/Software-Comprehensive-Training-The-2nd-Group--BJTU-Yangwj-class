@@ -258,8 +258,7 @@ class CanteenVisualizer:
         self.zoom_level = 1.0
         self.pan_x, self.pan_y = 0.0, 0.0
         self._drag_start = None
-        self._view_mode = 0  # 0=合并 1=地图 2=图表
-        self._show_details = True  # 是否显示文字和条带
+        self._view_mode = 0
 
         # 初始化Matplotlib
         self._setup_matplotlib()
@@ -397,10 +396,12 @@ class CanteenVisualizer:
         self.ax_clock = self.fig.add_axes([0.005, 0.87, 0.08, 0.10], facecolor='none')
         self.ax_clock.axis('off')
 
+        self._popup_tab = None  # 详情弹窗已移除
+
         # 视图切换按钮（Figure 级别矩形块，标题栏下居中）
         self._toggle_buttons = []
-        btn_names = ["地图", "折线图", "饼图", "综合", "详情"]
-        btn_colors = ['#E74C3C', '#3498DB', '#2ECC71', '#95A5A6', '#F39C12']
+        btn_names = ["地图", "折线图", "饼图", "综合"]
+        btn_colors = ['#E74C3C', '#3498DB', '#2ECC71', '#95A5A6']
         for i, (name, color) in enumerate(zip(btn_names, btn_colors)):
             x0, y0 = 0.78 + i * 0.055, 0.95
             w, h = 0.048, 0.022
@@ -511,8 +512,8 @@ class CanteenVisualizer:
         if event.inaxes == self.ax_map and event.button == 1:
             self._drag_start = (event.xdata, event.ydata)
         elif event.button == 1:
-            # 视图切换按钮
             fx, fy = event.x / self.fig.bbox.width, event.y / self.fig.bbox.height
+            # 视图切换按钮
             for rect, txt, name in self._toggle_buttons:
                 x0, y0 = rect.get_x(), rect.get_y()
                 w, h = rect.get_width(), rect.get_height()
@@ -579,25 +580,12 @@ class CanteenVisualizer:
             self.ax_map.set_position([0.05, 0.1, 0.90, 0.78])
             self.ax_map.set_visible(True)
         elif name == "折线图":
-            self.ax_stats.set_position([0.08, 0.15, 0.86, 0.70])
+            self.ax_stats.set_position([0.10, 0.18, 0.80, 0.62])
             self.ax_stats.set_visible(True)
         elif name == "饼图":
             self.ax_pie.set_position([0.15, 0.15, 0.70, 0.70])
             self.ax_pie.set_visible(True)
-        elif name == "详情":
-            self._show_details = not self._show_details
-            self.info_text.set_visible(self._show_details)
-            # 清除/重绘条带
-            for p in getattr(self, '_bar_patches', []):
-                p.set_visible(self._show_details)
-            for t in getattr(self, '_bar_texts', []):
-                t.set_visible(self._show_details)
-            self._update_toggle_buttons()
-            self.fig.canvas.draw_idle()
-            return
-
         else:  # 综合
-            self._show_details = True
             self.ax_map.set_position(self._pos_map)
             self.ax_stats.set_position(self._pos_stats)
             self.ax_pie.set_position(self._pos_pie)
@@ -617,8 +605,6 @@ class CanteenVisualizer:
                 active = self.ax_stats.get_visible()
             elif name == "饼图":
                 active = self.ax_pie.get_visible()
-            elif name == "详情":
-                active = self._show_details
             else:
                 active = all(a.get_visible() for a in [self.ax_map, self.ax_stats, self.ax_pie])
             rect.set_edgecolor('#FFD700' if active else 'white')
@@ -647,9 +633,7 @@ class CanteenVisualizer:
         self.fig.canvas.draw_idle()
 
     def _draw_canteen_bars(self, canteens, lang):
-        """在信息面板绘制横向进度条"""
-        if not self._show_details:
-            return
+        """在信息面板绘制横向进度条 + 弹窗内显示全量详情"""
         ax = self.canteen_info_ax
         # 清除旧的 bar patches（只清我们画的 bar，不清 text）
         for p in getattr(self, '_bar_patches', []):
@@ -659,13 +643,13 @@ class CanteenVisualizer:
         self._bar_patches = []
         self._bar_texts = []
 
-        max_show = 4
-        bar_h = 0.055
-        start_y = 0.28
-        gap = 0.025
+        max_show = 5
+        bar_h = 0.045
+        start_y = 0.55
+        gap = 0.045
 
-        ax.text(0.02, start_y + 0.03, _viz_t("canteen_header", lang),
-                transform=ax.transAxes, fontsize=12, fontweight='bold',
+        ax.text(0.02, start_y + 0.02, _viz_t("canteen_header", lang),
+                transform=ax.transAxes, fontsize=10, fontweight='bold',
                 color='#8B0000', va='bottom')
 
         for i, canteen in enumerate(canteens[:max_show]):
@@ -678,7 +662,7 @@ class CanteenVisualizer:
 
             # 名称
             t = ax.text(0.02, y0 + bar_h/2, canteen.name, transform=ax.transAxes,
-                       fontsize=12, va='center', color='#333333', fontweight='bold')
+                       fontsize=9, va='center', color='#333333', fontweight='bold')
             self._bar_texts.append(t)
 
             # 进度条背景（粉色框）
@@ -699,11 +683,11 @@ class CanteenVisualizer:
             # 数字（大红色加粗）
             t2 = ax.text(bar_x + bar_w + 0.02, y0 + bar_h/2,
                         str(queue_len), transform=ax.transAxes,
-                        fontsize=16, fontweight='bold', color='#CC0000', va='center')
+                        fontsize=11, fontweight='bold', color='#CC0000', va='center')
             self._bar_texts.append(t2)
 
         if len(canteens) > max_show:
-            t = ax.text(0.02, start_y - (max_show + 1) * (bar_h + gap),
+            t = ax.text(0.02, 0.01,
                        _viz_t("canteen_remaining", lang, count=len(canteens) - max_show),
                        transform=ax.transAxes, fontsize=9, color='#999999')
             self._bar_texts.append(t)
@@ -740,9 +724,9 @@ class CanteenVisualizer:
         h24 = (11 + (50 + total_sec // 60) // 60) % 24
         h12 = h24 % 12
         m = (50 + total_sec // 60) % 60
-        h_display = h12 if h12 != 0 else 12
+        h_display = h24  # 24小时制显示
 
-        # 时针（顺时针: 90 - degrees）
+        # 时针（用12小时制计算角度）
         ha = math.radians(90 - (h12 * 30 + m * 0.5))
         self.ax_clock.add_line(Line2D([cx, cx + r * 0.42 * math.cos(ha)],
                                       [cy, cy + r * 0.42 * math.sin(ha)],
@@ -759,7 +743,7 @@ class CanteenVisualizer:
                                        edgecolor='none', transform=self.ax_clock.transAxes))
 
         # 数字时钟（Courier New 加粗）
-        self.ax_clock.text(cx, cy - r - 0.12, f"BJT {h_display:02d}:{m:02d}",
+        self.ax_clock.text(cx, cy - r - 0.12, f"BJT {h24:02d}:{m:02d}",
                           fontsize=9, fontweight='bold', color='#FF1493',
                           ha='center', va='top', transform=self.ax_clock.transAxes,
                           family='monospace',
@@ -1102,7 +1086,7 @@ class CanteenVisualizer:
         # 更新左侧信息面板
         self.info_text.set_text("\n".join(info_lines))
 
-        # 绘制食堂排队横条（粉色框+浅蓝主体+大红数字）
+        # 绘制食堂排队横条
         self._draw_canteen_bars(canteens, lang)
 
     def start_animation(self, update_func, interval: int = 50) -> None:
