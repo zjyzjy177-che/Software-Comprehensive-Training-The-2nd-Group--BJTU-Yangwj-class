@@ -259,6 +259,7 @@ class CanteenVisualizer:
         self.pan_x, self.pan_y = 0.0, 0.0
         self._drag_start = None
         self._view_mode = 0  # 0=合并 1=地图 2=图表
+        self._show_details = True  # 是否显示文字和条带
 
         # 初始化Matplotlib
         self._setup_matplotlib()
@@ -398,10 +399,10 @@ class CanteenVisualizer:
 
         # 视图切换按钮（Figure 级别矩形块，标题栏下居中）
         self._toggle_buttons = []
-        btn_names = ["地图", "折线图", "饼图", "综合"]
-        btn_colors = ['#E74C3C', '#3498DB', '#2ECC71', '#95A5A6']
+        btn_names = ["地图", "折线图", "饼图", "综合", "详情"]
+        btn_colors = ['#E74C3C', '#3498DB', '#2ECC71', '#95A5A6', '#F39C12']
         for i, (name, color) in enumerate(zip(btn_names, btn_colors)):
-            x0, y0 = 0.83 + i * 0.04, 0.95
+            x0, y0 = 0.78 + i * 0.055, 0.95
             w, h = 0.048, 0.022
             rect = Rectangle((x0, y0), w, h, facecolor=color, edgecolor='white',
                             linewidth=1.5, transform=self.fig.transFigure, zorder=1000)
@@ -582,10 +583,21 @@ class CanteenVisualizer:
             self.ax_stats.set_visible(True)
         elif name == "饼图":
             self.ax_pie.set_position([0.15, 0.15, 0.70, 0.70])
-            self.canteen_info_ax.set_position([0.15, 0.05, 0.70, 0.08])
             self.ax_pie.set_visible(True)
-            self.canteen_info_ax.set_visible(True)
+        elif name == "详情":
+            self._show_details = not self._show_details
+            self.info_text.set_visible(self._show_details)
+            # 清除/重绘条带
+            for p in getattr(self, '_bar_patches', []):
+                p.set_visible(self._show_details)
+            for t in getattr(self, '_bar_texts', []):
+                t.set_visible(self._show_details)
+            self._update_toggle_buttons()
+            self.fig.canvas.draw_idle()
+            return
+
         else:  # 综合
+            self._show_details = True
             self.ax_map.set_position(self._pos_map)
             self.ax_stats.set_position(self._pos_stats)
             self.ax_pie.set_position(self._pos_pie)
@@ -605,6 +617,8 @@ class CanteenVisualizer:
                 active = self.ax_stats.get_visible()
             elif name == "饼图":
                 active = self.ax_pie.get_visible()
+            elif name == "详情":
+                active = self._show_details
             else:
                 active = all(a.get_visible() for a in [self.ax_map, self.ax_stats, self.ax_pie])
             rect.set_edgecolor('#FFD700' if active else 'white')
@@ -631,6 +645,68 @@ class CanteenVisualizer:
         """
         self.info_text.set_text(message)
         self.fig.canvas.draw_idle()
+
+    def _draw_canteen_bars(self, canteens, lang):
+        """在信息面板绘制横向进度条"""
+        if not self._show_details:
+            return
+        ax = self.canteen_info_ax
+        # 清除旧的 bar patches（只清我们画的 bar，不清 text）
+        for p in getattr(self, '_bar_patches', []):
+            p.remove()
+        for t in getattr(self, '_bar_texts', []):
+            t.remove()
+        self._bar_patches = []
+        self._bar_texts = []
+
+        max_show = 4
+        bar_h = 0.055
+        start_y = 0.28
+        gap = 0.025
+
+        ax.text(0.02, start_y + 0.03, _viz_t("canteen_header", lang),
+                transform=ax.transAxes, fontsize=12, fontweight='bold',
+                color='#8B0000', va='bottom')
+
+        for i, canteen in enumerate(canteens[:max_show]):
+            y0 = start_y - (i + 1) * (bar_h + gap) - 0.02
+            if y0 < 0.02:
+                break
+            queue_len = canteen.get_total_queue_length()
+            capacity = canteen.capacity
+            ratio = min(queue_len / max(capacity, 1), 1.0)
+
+            # 名称
+            t = ax.text(0.02, y0 + bar_h/2, canteen.name, transform=ax.transAxes,
+                       fontsize=12, va='center', color='#333333', fontweight='bold')
+            self._bar_texts.append(t)
+
+            # 进度条背景（粉色框）
+            bar_x, bar_w = 0.22, 0.42
+            bg = Rectangle((bar_x, y0), bar_w, bar_h, facecolor='none',
+                          edgecolor='#FF69B4', linewidth=1.2,
+                          transform=ax.transAxes)
+            ax.add_patch(bg)
+            self._bar_patches.append(bg)
+
+            # 填充（蓝色）
+            fill = Rectangle((bar_x, y0), bar_w * ratio, bar_h,
+                            facecolor='#5DADE2', edgecolor='none',
+                            alpha=0.85, transform=ax.transAxes)
+            ax.add_patch(fill)
+            self._bar_patches.append(fill)
+
+            # 数字（大红色加粗）
+            t2 = ax.text(bar_x + bar_w + 0.02, y0 + bar_h/2,
+                        str(queue_len), transform=ax.transAxes,
+                        fontsize=16, fontweight='bold', color='#CC0000', va='center')
+            self._bar_texts.append(t2)
+
+        if len(canteens) > max_show:
+            t = ax.text(0.02, start_y - (max_show + 1) * (bar_h + gap),
+                       _viz_t("canteen_remaining", lang, count=len(canteens) - max_show),
+                       transform=ax.transAxes, fontsize=9, color='#999999')
+            self._bar_texts.append(t)
 
     def _draw_clock(self, tick: int):
         """在独立 axes 上绘制粉色模拟钟表 + 数字时钟"""
@@ -1015,34 +1091,19 @@ class CanteenVisualizer:
         leaving_count = sum(1 for s in students if s.state == StudentState.LEAVING)
 
         lang = self.lang
-        # 构建信息文本
         pct = lambda n: n / total_students * 100 if total_students > 0 else 0
+        status_str = _viz_t('info_paused', lang) if self.is_paused else _viz_t('info_running', lang)
         info_lines = [
-            f"{_viz_t('info_tick', lang)}: {tick}",
-            f"{_viz_t('info_students', lang)}: {total_students}",
-            f"  {_viz_t('info_walking', lang)}: {walking_count} ({pct(walking_count):.1f}%)",
-            f"  {_viz_t('info_queuing', lang)}: {queuing_count} ({pct(queuing_count):.1f}%)",
-            f"  {_viz_t('info_eating', lang)}: {eating_count} ({pct(eating_count):.1f}%)",
-            f"  {_viz_t('info_leaving', lang)}: {leaving_count} ({pct(leaving_count):.1f}%)",
-            f"{_viz_t('info_canteens', lang)}: {canteen_count}",
-            f"{_viz_t('info_queue', lang)}: {total_queue}",
-            f"{_viz_t('info_speed', lang)}: {self.animation_speed}ms",
-            f"{_viz_t('info_status', lang)}: {_viz_t('info_paused', lang) if self.is_paused else _viz_t('info_running', lang)}",
+            f"{_viz_t('info_tick', lang)}:{tick} | {_viz_t('info_students', lang)}:{total_students} | {_viz_t('info_status', lang)}:{status_str}",
+            f"{_viz_t('info_walking', lang)}:{walking_count}({pct(walking_count):.0f}%) {_viz_t('info_queuing', lang)}:{queuing_count}({pct(queuing_count):.0f}%) {_viz_t('info_eating', lang)}:{eating_count}({pct(eating_count):.0f}%) {_viz_t('info_leaving', lang)}:{leaving_count}({pct(leaving_count):.0f}%)",
+            f"{_viz_t('info_canteens', lang)}:{canteen_count} | {_viz_t('info_queue', lang)}:{total_queue} | {_viz_t('info_speed', lang)}:{self.animation_speed}ms",
         ]
 
-        # 更新左侧信息面板（仿真数据 + 食堂排队合并在一个 text 中）
-        max_show = 6
-        canteen_lines = ["", _viz_t("canteen_header", lang)]
-        for i, canteen in enumerate(canteens[:max_show]):
-            queue_len = canteen.get_total_queue_length()
-            capacity = canteen.capacity
-            bar_len = min(int(queue_len / max(capacity, 1) * 8), 8)
-            bar = "#" * bar_len + "." * (8 - bar_len)
-            canteen_lines.append(f" {canteen.name} [{bar}] {queue_len}/{capacity}")
-        if len(canteens) > max_show:
-            canteen_lines.append(" " + _viz_t("canteen_remaining", lang, count=len(canteens) - max_show))
-        all_lines = info_lines + canteen_lines
-        self.info_text.set_text("\n".join(all_lines))
+        # 更新左侧信息面板
+        self.info_text.set_text("\n".join(info_lines))
+
+        # 绘制食堂排队横条（粉色框+浅蓝主体+大红数字）
+        self._draw_canteen_bars(canteens, lang)
 
     def start_animation(self, update_func, interval: int = 50) -> None:
         """
