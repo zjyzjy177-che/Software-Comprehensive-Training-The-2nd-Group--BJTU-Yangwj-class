@@ -24,6 +24,7 @@ import time
 from typing import List, Dict, Tuple, Any, Optional
 from models import Student, Canteen, StudentState
 from strategies import create_selector_from_config, CanteenSelector
+from road_network import RoadNetwork
 
 
 class SimulationEngine:
@@ -122,6 +123,12 @@ class SimulationEngine:
 
         # 食堂选择器（使用strategies.py中的算法）
         self.canteen_selector = self._create_canteen_selector()
+
+        # 道路网络（所有学生移动必须沿道路）
+        road_segments = self.config.get('road_segments', [])
+        self.road_network = RoadNetwork(road_segments) if road_segments else None
+        if self.road_network:
+            self.canteen_selector.set_road_network(self.road_network)
 
         # 初始化环境
         self._initialize_environment()
@@ -263,52 +270,33 @@ class SimulationEngine:
         """
         创建初始学生（内部方法）
 
-        根据配置创建指定数量的初始学生。
-        学生起始位置可以指定，也可以随机生成。
+        仿真从 sim_start_time（默认07:00）开始，此时仅有少量学生从宿舍出发。
+        大量学生由课表事件（下课/午高峰）在后续 tick 中动态生成。
         """
         student_count = self.config['student_count']
         start_positions = self.config.get('student_start_positions')
 
-        for i in range(student_count):
-            # 确定起始位置（优先使用指定位置，否则使用建筑坐标）
+        # 初始生成约 1/6 的学生（清晨宿舍出发），其余由课表事件逐步生成至上限
+        initial_count = max(5, student_count // 6)
+
+        # 优先从宿舍生成
+        building_coords = self.config.get('building_coords', {})
+        dorm_positions = []
+        for name, coord in building_coords.items():
+            if self._classify_building(name) == 'dorm':
+                dorm_positions.append(coord)
+
+        for i in range(initial_count):
             if start_positions and i < len(start_positions):
                 position = start_positions[i]
+            elif dorm_positions:
+                position = random.choice(dorm_positions)
             else:
                 position = self._get_spawn_position()
 
-            # 选择目标食堂（使用智能选择器）
-            target_canteen = None
-            if self.canteens and hasattr(self, 'canteen_selector') and self.canteen_selector:
-                # 使用选择器选择最优食堂
-                target_canteen = self.canteen_selector.select_best_canteen(position, self.canteens)
+            self._spawn_single_student(position=position)
 
-            # 如果选择器没有选择到食堂，回退到随机选择
-            if target_canteen is None and self.canteens:
-                target_canteen = random.choice(self.canteens)
-                print(f"警告：学生{i}使用选择器未选择到食堂，回退到随机选择")
-
-            if target_canteen:
-                # 创建学生对象（速度、用餐时间从 config 读取）
-                speed = self._random_student_speed()
-                eating_time = self._random_eating_time()
-                student = Student(
-                    student_id=i,
-                    position=position,
-                    destination=target_canteen.position,
-                    speed=speed,
-                    eating_time=eating_time
-                )
-
-                # 设置目标食堂ID
-                student.target_canteen_id = target_canteen.canteen_id
-
-                # 为学生设置选择策略（可选，供后续扩展使用）
-                # student.selection_strategy = self.canteen_selector
-
-                self.students.append(student)
-                self.global_statistics['total_students_generated'] += 1
-
-        print(f"创建初始学生：{len(self.students)}名")
+        print(f"创建初始学生：{len(self.students)}名（清晨宿舍出发，共预配置{student_count}人规模）")
 
     def _generate_random_position(self) -> Tuple[float, float]:
         """
@@ -324,31 +312,26 @@ class SimulationEngine:
 
     def _get_spawn_position(self) -> Tuple[float, float]:
         """
-        获取学生生成位置（加权随机选取，大建筑生成更多学生）
+        获取学生生成位置（按建筑人数权重加权随机选取）
 
-        从 spawn_positions 中用 spawn_weights 加权选取，
-        无配置时回退到地图边界内随机位置。
+        使用 building_weights 作为权重，人数多的建筑（如嘉园4000人）
+        比人数少的建筑（如校史馆100人）更可能生成学生。
         """
+        building_coords = self.config.get('building_coords', {})
+        building_weights = self.config.get('building_weights', {})
+
+        if building_coords and building_weights:
+            # 筛选有坐标且有正权重的建筑
+            valid_names = [n for n in building_coords
+                          if n in building_weights and building_weights[n] > 0]
+            if valid_names:
+                w = [building_weights[n] for n in valid_names]
+                chosen = random.choices(valid_names, weights=w, k=1)[0]
+                return building_coords[chosen]
+
+        # 回退：uniform 随机
         spawn_positions = self.config.get('spawn_positions')
         if spawn_positions:
-            weights = self.config.get('spawn_weights', {})
-            if weights:
-                # 加权随机：思源楼等大建筑权重高，生成更多学生
-                pos_list = list(spawn_positions)
-                # 尝试匹配权重（通过坐标反查建筑名）
-                w_list = []
-                for pos in pos_list:
-                    w_list.append(1.0)  # 默认等权重
-                # 用配置中的权重表
-                cfg_obj = self.config.get('_config_obj')
-                if cfg_obj:
-                    for name, w in weights.items():
-                        if name in cfg_obj.coordinates:
-                            coord = cfg_obj.coordinates[name]
-                            if coord in pos_list:
-                                idx = pos_list.index(coord)
-                                w_list[idx] = w / 100.0  # 缩放到合理范围
-                return tuple(random.choices(pos_list, weights=w_list, k=1)[0])
             return tuple(random.choice(spawn_positions))
         return self._generate_random_position()
 
@@ -409,59 +392,259 @@ class SimulationEngine:
 
         return True
 
+    # ============================================================
+    # 时间与课表辅助方法
+    # ============================================================
+
+    def _time_str_to_minutes(self, time_str: str) -> int:
+        """将 'HH:MM' 格式转换为从午夜开始的分钟数"""
+        h, m = map(int, time_str.split(':'))
+        return h * 60 + m
+
+    def _tick_to_sim_time(self, tick: int) -> tuple:
+        """将tick序号转换为模拟时间 (hour, minute)"""
+        start_time = self.config.get('sim_start_time', '07:00')
+        start_minutes = self._time_str_to_minutes(start_time)
+        tick_seconds = self.config.get('tick_duration_seconds', 60)
+        elapsed_minutes = (tick * tick_seconds) / 60.0
+        total_minutes = start_minutes + elapsed_minutes
+        hours = int(total_minutes / 60) % 24
+        minutes = int(total_minutes % 60)
+        return hours, minutes
+
+    def _classify_building(self, name: str) -> str:
+        """根据建筑名称关键词分类: 'teaching' | 'dorm' | 'canteen' | 'other'"""
+        canteen_kw = ['食堂', '留园']
+        dorm_kw = ['宿舍', '嘉园', '公寓']
+        teaching_kw = ['教', '楼', '逸夫', '思源', '土木', '电气', '机械',
+                       '校史馆', '科学会堂', '计算中心', '图书馆']
+
+        if any(kw in name for kw in canteen_kw):
+            return 'canteen'
+        if any(kw in name for kw in dorm_kw):
+            return 'dorm'
+        if any(kw in name for kw in teaching_kw):
+            return 'teaching'
+        return 'other'
+
+    def _is_peak_hour(self, hour: int, minute: int) -> bool:
+        """判断当前时间是否在就餐高峰期（11:30-12:20 或 18:00-19:00）"""
+        # 午餐高峰 11:30-12:20
+        if hour == 11 and minute >= 30:
+            return True
+        if hour == 12 and minute <= 20:
+            return True
+        # 晚餐高峰 18:00-19:00
+        if hour == 18:
+            return True
+        return False
+
+    def _get_schedule_events(self, current_time: str) -> tuple:
+        """
+        获取当前时间点的课表事件
+
+        返回:
+        tuple: (class_ends, class_starts) — 下课和上课的建筑名称列表
+        """
+        class_schedules = self.config.get('class_schedules', {})
+        class_ends = []
+        class_starts = []
+
+        for building_name, schedules in class_schedules.items():
+            for slot in schedules:
+                if slot['end'] == current_time:
+                    class_ends.append(building_name)
+                if slot['start'] == current_time:
+                    class_starts.append(building_name)
+
+        return class_ends, class_starts
+
+    # ============================================================
+    # 学生生成辅助方法
+    # ============================================================
+
+    def _spawn_single_student(self, position: Tuple[float, float] = None) -> None:
+        """生成单个学生（内部方法），从给定位置出发前往食堂，受 student_count 上限约束"""
+        max_students = self.config.get('student_count', 100)
+        if len(self.students) >= max_students:
+            return
+
+        if position is None:
+            position = self._get_spawn_position()
+
+        # 吸附到最近道路
+        snapped_pos = position
+        if self.road_network:
+            snapped_pos, _ = self.road_network.snap_to_road(position)
+
+        student_id = len(self.students)
+
+        # 选择目标食堂（使用智能选择器，传入吸附后位置）
+        target_canteen = None
+        if self.canteens and hasattr(self, 'canteen_selector') and self.canteen_selector:
+            target_canteen = self.canteen_selector.select_best_canteen(snapped_pos, self.canteens)
+
+        if target_canteen is None and self.canteens:
+            target_canteen = random.choice(self.canteens)
+
+        if target_canteen:
+            speed = self._random_student_speed()
+            eating_time = self._random_eating_time()
+            student = Student(
+                student_id=student_id,
+                position=snapped_pos,
+                destination=target_canteen.position,
+                speed=speed,
+                eating_time=eating_time
+            )
+            student.target_canteen_id = target_canteen.canteen_id
+
+            # 计算道路路径点
+            if self.road_network:
+                waypoints = self.road_network.find_path(snapped_pos, target_canteen.position)
+                student.waypoints = waypoints
+                student.current_waypoint_idx = 0
+
+            self.students.append(student)
+            self.active_students.append(student)
+            self.global_statistics['total_students_generated'] += 1
+
+    def _spawn_class_end_burst(self, building_name: str, burst_size: int,
+                               total_ends: int = 1, total_scheduled: int = 7) -> None:
+        """
+        下课时段爆发式生成学生
+
+        两种模式：
+        - 错峰时段（仅部分教学楼下课，如12:00仅思源/9教/土木下课）：
+          60%从该教学楼出，30%从宿舍出（按权重），10%从其他教学楼出（按权重）
+        - 共享时段（多数教学楼同时下课，如09:50六栋楼一起下课）：
+          所有建筑按权重等比例生成
+        """
+        building_coords = self.config.get('building_coords', {})
+        building_weights = self.config.get('building_weights', {})
+        building_pos = building_coords.get(building_name)
+
+        if building_pos is None or not building_coords:
+            return
+
+        # 按实际学生规模缩放 burst（权重是最大容量上限，需与当前学生数成比例）
+        total_weight = sum(building_weights.values())
+        actual_students = len(self.students) + self.config.get('student_count', 100)
+        scale = min(1.0, actual_students / max(total_weight * 0.05, 1))
+        burst_size = max(10, int(burst_size * scale))
+
+        # 判断错峰还是共享：下课建筑数 <= 总课表建筑数的一半 → 错峰
+        is_staggered = total_ends <= total_scheduled / 2
+
+        # 分类收集建筑（含权重）
+        dorm_items = []
+        other_teaching_items = []
+
+        for name, coord in building_coords.items():
+            if name == building_name:
+                continue
+            btype = self._classify_building(name)
+            w = building_weights.get(name, 100)
+            if btype == 'dorm' and w > 0:
+                dorm_items.append((name, coord, w))
+            elif btype == 'teaching' and w > 0:
+                other_teaching_items.append((name, coord, w))
+
+        if is_staggered:
+            # ---- 错峰：6:3:1 分布 ----
+            num_from_building = int(burst_size * 0.6)
+            num_from_dorms = int(burst_size * 0.3)
+            num_from_other = burst_size - num_from_building - num_from_dorms
+
+            # 60% 从该教学楼出来
+            for _ in range(num_from_building):
+                self._spawn_single_student(position=building_pos)
+
+            # 30% 从宿舍出来（按权重加权）
+            if dorm_items:
+                d_names = [it[0] for it in dorm_items]
+                d_weights = [it[2] for it in dorm_items]
+                for _ in range(num_from_dorms):
+                    chosen = random.choices(d_names, weights=d_weights, k=1)[0]
+                    self._spawn_single_student(position=building_coords[chosen])
+            else:
+                for _ in range(num_from_dorms):
+                    self._spawn_single_student()
+
+            # 10% 从其他教学楼出来（按权重加权）
+            if other_teaching_items:
+                ot_names = [it[0] for it in other_teaching_items]
+                ot_weights = [it[2] for it in other_teaching_items]
+                for _ in range(num_from_other):
+                    chosen = random.choices(ot_names, weights=ot_weights, k=1)[0]
+                    self._spawn_single_student(position=building_coords[chosen])
+            else:
+                for _ in range(num_from_other):
+                    self._spawn_single_student()
+        else:
+            # ---- 共享时段：所有建筑按权重等比例生成 ----
+            all_items = [(building_name, building_pos,
+                         building_weights.get(building_name, 2000))]
+            all_items.extend(dorm_items)
+            all_items.extend(other_teaching_items)
+
+            all_names = [it[0] for it in all_items]
+            all_weights = [it[2] for it in all_items]
+            for _ in range(burst_size):
+                chosen = random.choices(all_names, weights=all_weights, k=1)[0]
+                self._spawn_single_student(position=building_coords[chosen])
+
+    # ============================================================
+    # 主要生成逻辑
+    # ============================================================
+
     def _spawn_students(self) -> None:
         """
-        生成新学生（内部方法）
+        生成新学生（内部方法）—— 基于课表时间的智能生成
 
-        根据生成速率（spawn_rate）概率性地生成新学生。
-        每个Tick有spawn_rate的概率生成一个学生。
-        后续可扩展更复杂的生成逻辑（如按时间分布生成）。
+        根据课表时间和就餐高峰期动态调整学生生成：
+        - 下课时间点：爆发式生成学生（从教学楼、宿舍、其他教学楼出发去食堂）
+        - 就餐高峰期（11:30-12:20, 18:00-19:00）：大幅提高生成率
+        - 上课时间点：学生回教学楼，去食堂的流量自然降低
+        - 正常时间：按基础概率生成
         """
-        spawn_rate = self.config['spawn_rate']
+        hour, minute = self._tick_to_sim_time(self.current_tick)
+        current_time = f"{hour:02d}:{minute:02d}"
 
-        # 生成概率判断
-        if random.random() < spawn_rate:
-            # 生成一个新学生
-            student_id = len(self.students)
+        # 检查课表事件（下课/上课）
+        class_ends, class_starts = self._get_schedule_events(current_time)
 
-            # 使用真实建筑坐标作为起始位置
-            start_position = self._get_spawn_position()
+        # 判断是否在就餐高峰期
+        in_peak = self._is_peak_hour(hour, minute)
 
-            # 选择目标食堂（使用智能选择器）
-            target_canteen = None
-            if self.canteens and hasattr(self, 'canteen_selector') and self.canteen_selector:
-                # 使用选择器选择最优食堂
-                target_canteen = self.canteen_selector.select_best_canteen(start_position, self.canteens)
+        # ---- 下课时间：爆发式生成 ----
+        total_scheduled = len(self.config.get('class_schedules', {}))
+        for building_name in class_ends:
+            burst_size = self.config.get('class_end_burst_size', 50)
+            self._spawn_class_end_burst(building_name, burst_size,
+                                        len(class_ends), total_scheduled)
+            if self.current_tick % 50 == 0:
+                mode = '错峰' if len(class_ends) <= total_scheduled / 2 else '共享'
+                print(f"Tick {self.current_tick} ({current_time}): "
+                      f"{building_name}下课({mode})，爆发生成{burst_size}名学生")
 
-            # 如果选择器没有选择到食堂，回退到随机选择
-            if target_canteen is None and self.canteens:
-                target_canteen = random.choice(self.canteens)
-                if self.current_tick % 50 == 0:  # 减少日志频率
-                    print(f"Tick {self.current_tick}: 选择器未选择到食堂，回退到随机选择")
+        # ---- 高峰期：按学生规模每tick生成多个学生 ----
+        if in_peak:
+            student_count = self.config.get('student_count', 100)
+            multiplier = self.config.get('peak_spawn_multiplier', 5.0)
+            base_peak = max(2, int(student_count * multiplier / 100))
+            num_spawn = random.randint(base_peak, base_peak * 2)
+            for _ in range(num_spawn):
+                self._spawn_single_student()
+            if self.current_tick % 20 == 0:
+                print(f"Tick {self.current_tick} ({current_time}): "
+                      f"就餐高峰期，生成{num_spawn}名学生")
 
-            if target_canteen:
-                # 创建学生对象（速度、用餐时间从 config 读取）
-                speed = self._random_student_speed()
-                eating_time = self._random_eating_time()
-                student = Student(
-                    student_id=student_id,
-                    position=start_position,
-                    destination=target_canteen.position,
-                    speed=speed,
-                    eating_time=eating_time
-                )
-
-                # 设置目标食堂ID
-                student.target_canteen_id = target_canteen.canteen_id
-
-                # 添加到学生列表
-                self.students.append(student)
-                self.active_students.append(student)
-                self.global_statistics['total_students_generated'] += 1
-
-                # 打印生成信息（可选）
-                if self.current_tick % 50 == 0:  # 每50个Tick打印一次生成信息
-                    print(f"Tick {self.current_tick}: 生成新学生 {student_id}，目标食堂 {target_canteen.name}")
+        # ---- 课间/正常时间：按基础概率生成 ----
+        elif not class_ends:
+            spawn_rate = self.config['spawn_rate']
+            if random.random() < spawn_rate:
+                self._spawn_single_student()
 
     def _update_all_students(self) -> None:
         """

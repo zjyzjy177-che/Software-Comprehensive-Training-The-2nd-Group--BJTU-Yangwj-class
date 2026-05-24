@@ -395,7 +395,14 @@ def initialize_visualization(config: Dict[str, Any]):
         from visualizer import CanteenVisualizer
         map_boundaries = config.get('map_boundaries', (-250, -400, 450, 200))
         lang = config.get('lang', 'zh_CN')
-        visualizer = CanteenVisualizer(map_boundaries=tuple(map_boundaries), lang=lang)
+        sim_start = config.get('sim_start_time', '07:00')
+        tick_sec = config.get('tick_duration_seconds', 60)
+        road_segments = config.get('road_segments', [])
+        visualizer = CanteenVisualizer(
+            map_boundaries=tuple(map_boundaries), lang=lang,
+            sim_start_time=sim_start, tick_duration_seconds=tick_sec,
+            road_segments=road_segments
+        )
         print("可视化模块初始化完成")
         return visualizer
     except ImportError:

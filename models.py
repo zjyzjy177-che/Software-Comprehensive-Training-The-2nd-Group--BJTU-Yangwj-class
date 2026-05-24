@@ -89,6 +89,10 @@ class Student:
         self.state_timer = 0  # 在当前状态的停留时间
         self.eating_time = eating_time if eating_time is not None else self.DEFAULT_EATING_TIME
 
+        # 道路网络路径点（由 RoadNetwork.find_path 生成）
+        self.waypoints = []  # 路径点列表 [(x,y), ...]
+        self.current_waypoint_idx = 0  # 当前前往的路径点索引
+
         # 目标食堂和窗口
         self.target_canteen_id = None  # 目标食堂ID，在choose_canteen方法中设置
         self.target_window_id = None   # 目标窗口ID，在join_queue方法中设置
@@ -174,23 +178,14 @@ class Student:
                 # 用餐结束，状态转换为离开
                 self.state = StudentState.LEAVING
                 self.state_timer = 0
-                self.leave_time = self.state_timer  # 记录离开时间
+                self.leave_time = self.state_timer
                 print(f"学生{self.student_id}用餐结束，准备离开")
 
         elif self.state == StudentState.LEAVING:
-            # 离开状态：离开食堂区域
-            # 简单实现：向随机方向移动，模拟离开
-            self._move_randomly()
-
-            # 如果提供了边界，检查是否离开仿真区域
-            if boundaries:
-                x_min, y_min, x_max, y_max = boundaries
-                x, y = self.position
-                # 如果坐标超出边界一定范围，认为已离开
-                if x < x_min - 100 or x > x_max + 100 or y < y_min - 100 or y > y_max + 100:
-                    self.state = StudentState.LEFT
-                    print(f"学生{self.student_id}已离开仿真区域")
-                    return False  # 学生已离开
+            # 离开状态：原地停留3 tick后消失
+            if self.state_timer >= 3:
+                self.state = StudentState.LEFT
+                return False  # 学生已离开
 
         # 坐标边界检查（如果提供了边界）
         if boundaries and self.state != StudentState.LEFT:
@@ -199,58 +194,37 @@ class Student:
         return self.state != StudentState.LEFT
 
     def _move_to_destination(self) -> None:
-        """
-        向目标食堂移动（内部方法）
+        """沿道路路径点向目标移动，没有路径点时直接走向目标"""
+        # 确定当前目标点
+        if self.waypoints and self.current_waypoint_idx < len(self.waypoints):
+            target = self.waypoints[self.current_waypoint_idx]
+        else:
+            target = self.destination
 
-        计算从当前位置到目标食堂的方向向量，
-        然后按照速度移动，更新位置坐标。
-
-        使用欧几里得距离计算移动向量。
-        """
-        # 计算方向向量
-        dx = self.destination[0] - self.position[0]
-        dy = self.destination[1] - self.position[1]
-
-        # 计算当前距离
+        dx = target[0] - self.position[0]
+        dy = target[1] - self.position[1]
         distance = math.sqrt(dx**2 + dy**2)
 
-        # 如果距离为0，已经到达（理论上不会发生，因为之前有阈值检查）
         if distance == 0:
+            self._advance_waypoint()
             return
 
-        # 归一化方向向量，并按速度缩放
-        dx = dx / distance * self.speed
-        dy = dy / distance * self.speed
-
-        # 更新位置
-        new_x = self.position[0] + dx
-        new_y = self.position[1] + dy
-
-        # 确保不会移动过远（防止 overshoot）
-        # 计算移动后的距离
-        new_distance = self._calculate_distance((new_x, new_y), self.destination)
-        if new_distance > distance:
-            # 如果移动后距离反而增加，说明移动过头了，直接设置为目标位置
-            self.position = self.destination
-        else:
-            self.position = (new_x, new_y)
-
-    def _move_randomly(self) -> None:
-        """
-        随机移动（内部方法）
-
-        用于LEAVING状态，学生离开食堂区域。
-        向随机方向移动一段距离。
-        """
-        # 生成随机角度（0到2π）
-        angle = random.uniform(0, 2 * math.pi)
-
-        # 计算移动向量
-        dx = math.cos(angle) * self.speed
-        dy = math.sin(angle) * self.speed
-
-        # 更新位置
+        # 归一化并移动
+        step = min(self.speed, distance)
+        dx = dx / distance * step
+        dy = dy / distance * step
         self.position = (self.position[0] + dx, self.position[1] + dy)
+
+        # 到达当前目标点时推进到下一个路径点
+        if self._calculate_distance(self.position, target) < self.ARRIVAL_THRESHOLD:
+            self._advance_waypoint()
+
+    def _advance_waypoint(self) -> None:
+        """推进到下一个路径点，全部完成后到达终点"""
+        if self.waypoints and self.current_waypoint_idx < len(self.waypoints):
+            self.current_waypoint_idx += 1
+            if self.current_waypoint_idx >= len(self.waypoints):
+                self.position = self.destination
 
     def _enforce_boundaries(self, boundaries: Tuple[float, float, float, float]) -> None:
         """

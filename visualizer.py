@@ -185,7 +185,9 @@ class CanteenVisualizer:
     """
 
     def __init__(self, map_boundaries: Tuple[float, float, float, float] = (-250, -400, 450, 200),
-                 title: str = "BJTU食堂就餐流量仿真", lang: str = "zh_CN"):
+                 title: str = "BJTU食堂就餐流量仿真", lang: str = "zh_CN",
+                 sim_start_time: str = "07:00", tick_duration_seconds: int = 60,
+                 road_segments: list = None):
         """
         初始化可视化器
 
@@ -193,6 +195,8 @@ class CanteenVisualizer:
         map_boundaries: 地图边界 (x_min, y_min, x_max, y_max)
         title: 窗口标题
         lang: 语言代码 zh_CN / zh_TW / en
+        sim_start_time: 仿真开始时间 (HH:MM)，与 engine 配置对齐
+        tick_duration_seconds: 每 tick 对应秒数，与 engine 配置对齐
 
         关键步骤：
         1. 配置Matplotlib参数（中文字体、DPI等）
@@ -203,7 +207,16 @@ class CanteenVisualizer:
         # 地图边界
         self.x_min, self.y_min, self.x_max, self.y_max = map_boundaries
         self.map_width = self.x_max - self.x_min
+
+        # 时间系统（与 engine config 对齐）
+        self.sim_start_time = sim_start_time
+        self.tick_duration_seconds = tick_duration_seconds
+        h, m = map(int, sim_start_time.split(':'))
+        self._sim_start_seconds = h * 3600 + m * 60
         self.map_height = self.y_max - self.y_min
+
+        # 道路段数据（用于绘制）
+        self.road_segments = road_segments or []
 
         # 语言
         self.lang = lang
@@ -719,11 +732,12 @@ class CanteenVisualizer:
                               color='#FF1493', ha='center', va='center',
                               transform=self.ax_clock.transAxes)
 
-        # 时间计算
-        total_sec = tick * 30
-        h24 = (11 + (50 + total_sec // 60) // 60) % 24
+        # 时间计算：基于配置的 sim_start_time + tick * tick_duration
+        total_sec = self._sim_start_seconds + tick * self.tick_duration_seconds
+        total_min = total_sec // 60
+        h24 = (total_min // 60) % 24
         h12 = h24 % 12
-        m = (50 + total_sec // 60) % 60
+        m = total_min % 60
         h_display = h24  # 24小时制显示
 
         # 时针（用12小时制计算角度）
@@ -781,6 +795,9 @@ class CanteenVisualizer:
         # 清除上一帧的图形元素
         self._clear_frame()
 
+        # 绘制道路网络
+        self._draw_roads()
+
         # 绘制食堂
         self._draw_canteens(canteens)
 
@@ -824,6 +841,22 @@ class CanteenVisualizer:
             if lbl in self.ax_map.texts:
                 lbl.remove()
         self.text_labels.clear()
+
+    def _draw_roads(self) -> None:
+        """绘制道路网络（浅灰色矩形）"""
+        if not self.road_segments:
+            return
+        for (x_min, x_max), (y_min, y_max) in self.road_segments:
+            # 规范化范围（确保 min < max）
+            rx = min(x_min, x_max)
+            rw = abs(x_max - x_min)
+            ry = min(y_min, y_max)
+            rh = abs(y_max - y_min)
+            rect = Rectangle((rx, ry), rw, rh,
+                           facecolor='#CCCCCC', edgecolor='#AAAAAA',
+                           linewidth=0.5, alpha=0.35, zorder=1)
+            self.ax_map.add_patch(rect)
+            self.canteen_rects.append(rect)  # 复用清理列表
 
     def _draw_canteens(self, canteens: List[Canteen]) -> None:
         """绘制食堂位置和状态，文字裁剪到 axes 边界防穿模"""

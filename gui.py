@@ -969,7 +969,7 @@ class BJTUSimulationGUI:
         self.lf_params.pack(fill="x", padx=10, pady=8)
 
         params = [
-            ("ticks_label", "entry_ticks", "150", "ticks"),
+            ("ticks_label", "entry_ticks", "600", "ticks"),
             ("students_label", "entry_students", "30", "students"),
             ("canteens_label", "entry_canteens", "2", "canteens"),
             ("spawn_label", "entry_spawn", "0.08", "spawn"),

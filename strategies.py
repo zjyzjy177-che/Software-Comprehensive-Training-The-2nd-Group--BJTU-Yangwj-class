@@ -80,6 +80,9 @@ class CanteenSelector:
         if self.distance_weight + self.queue_weight == 0:
             raise ValueError("权重之和不能为0")
 
+        # 道路网络（用于计算路径距离，替代欧几里得距离）
+        self.road_network = None
+
         # 统计信息
         self.selection_count = 0
         self.average_score = 0.0
@@ -138,7 +141,7 @@ class CanteenSelector:
         # 步骤1：过滤可用食堂
         available_canteens = []
         for canteen in canteens:
-            distance = self._calculate_distance(student_pos, canteen.position)
+            distance = self._get_distance(student_pos, canteen.position)
             if distance <= self.max_walk_distance:
                 available_canteens.append((canteen, distance))
 
@@ -256,6 +259,16 @@ class CanteenSelector:
         float: 两点之间的距离
         """
         return math.sqrt((pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1])**2)
+
+    def set_road_network(self, road_network) -> None:
+        """设置道路网络，后续距离计算将使用道路路径长度"""
+        self.road_network = road_network
+
+    def _get_distance(self, pos1: Tuple[float, float], pos2: Tuple[float, float]) -> float:
+        """获取两点间距离：优先使用道路路径长度，否则欧几里得距离"""
+        if self.road_network:
+            return self.road_network.path_length(pos1, pos2)
+        return self._calculate_distance(pos1, pos2)
 
     def update_weights(self, distance_weight: float, queue_weight: float) -> None:
         """
