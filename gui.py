@@ -1127,20 +1127,13 @@ class BJTUSimulationGUI:
 
         # 导出按钮（仿真完成后出现）
         self.export_frame = tk.Frame(self.lf_result, bg=self.BG)
-        self.btn_export_xlsx = self._make_btn(self.export_frame, "导出 Excel",
-                                               font=(SYSTEM_FONT, 9, "bold"),
-                                               bg="#27AE60", fg=self.WHITE,
-                                               active_bg="#1E8449", active_fg=self.WHITE,
-                                               command=lambda: self._export_report("xlsx"),
-                                               padx=8, pady=3,
-                                               pack_side="left", pack_padx=3)
-        self.btn_export_docx = self._make_btn(self.export_frame, "导出 Word",
-                                               font=(SYSTEM_FONT, 9, "bold"),
-                                               bg="#2980B9", fg=self.WHITE,
-                                               active_bg="#1F6DA0", active_fg=self.WHITE,
-                                               command=lambda: self._export_report("docx"),
-                                               padx=8, pady=3,
-                                               pack_side="left", pack_padx=3)
+        self.btn_export = self._make_btn(self.export_frame, "导出报告",
+                                          font=(SYSTEM_FONT, 10, "bold"),
+                                          bg="#27AE60", fg=self.WHITE,
+                                          active_bg="#1E8449", active_fg=self.WHITE,
+                                          command=self._show_export_dialog,
+                                          padx=12, pady=4,
+                                          pack_side="left", pack_padx=5)
 
     # ====================== 语言切换 ======================
     def _set_lang_btn_style(self, code, bg_color):
@@ -1573,32 +1566,105 @@ class BJTUSimulationGUI:
                             self.t("register_done", role=role_display, uid=uid, pwd=default_pwd))
 
     # ---------- 导出报告 ----------
-    def _export_report(self, fmt="xlsx"):
-        """导出仿真结果为 Excel/Word"""
+    def _show_export_dialog(self):
+        """弹出导出格式和路径选择窗口"""
         engine = getattr(self, '_last_engine', None)
         if engine is None:
             messagebox.showwarning("导出失败", "没有可导出的仿真结果，请先运行仿真")
             return
-        try:
-            from export_report import export_excel, export_docx
-            import os, sys
-            desktop = os.path.expanduser("~/Desktop")
-            if fmt == "xlsx":
-                path = export_excel(engine, os.path.join(desktop, "仿真报告.xlsx"),
-                                   engine.tick_history)
-            else:
-                path = export_docx(engine, os.path.join(desktop, "仿真报告.docx"),
-                                  engine.tick_history)
-            # 打开文件所在文件夹
-            if sys.platform == "darwin":
-                os.system(f'open -R "{path}"')
-            elif sys.platform == "win32":
-                os.system(f'explorer /select,"{path}"')
-            messagebox.showinfo("导出成功", f"已导出到桌面:\n{os.path.basename(path)}")
-        except ImportError as e:
-            messagebox.showerror("缺少依赖", f"请先安装: pip install openpyxl python-docx\n{e}")
-        except Exception as e:
-            messagebox.showerror("导出失败", str(e))
+
+        dlg = tk.Toplevel(self.root)
+        dlg.title("导出仿真报告")
+        dlg.geometry("380x250")
+        dlg.resizable(False, False)
+        dlg.config(bg="#FFF8DC")
+        dlg.transient(self.root)
+        dlg.grab_set()
+        dlg.update_idletasks()
+        x = self.root.winfo_x() + (600 - 380) // 2
+        y = self.root.winfo_y() + (690 - 250) // 2
+        dlg.geometry(f"+{x}+{y}")
+
+        tk.Label(dlg, text="导出仿真报告", font=(SYSTEM_FONT, 14, "bold"),
+                 bg="#27AE60", fg="white", pady=8).pack(fill="x")
+
+        tk.Label(dlg, text="选择导出格式：", font=(SYSTEM_FONT, 11),
+                 bg="#FFF8DC").pack(pady=(10, 4))
+        fmt_var = tk.StringVar(value="xlsx")
+        fmts = [("Excel 表格 (.xlsx)", "xlsx"),
+                ("Word 文档 (.docx)", "docx"),
+                ("PDF 文档 (.pdf)", "pdf")]
+        ff = tk.Frame(dlg, bg="#FFF8DC")
+        ff.pack()
+        for text, val in fmts:
+            tk.Radiobutton(ff, text=text, variable=fmt_var, value=val,
+                          font=(SYSTEM_FONT, 10), bg="#FFF8DC",
+                          activebackground="#FFF8DC").pack(anchor="w", padx=20)
+
+        tk.Label(dlg, text="保存位置：", font=(SYSTEM_FONT, 11),
+                 bg="#FFF8DC").pack(pady=(10, 4))
+        pf = tk.Frame(dlg, bg="#FFF8DC")
+        pf.pack()
+        path_var = tk.StringVar(value=os.path.join(os.path.expanduser("~"), "Desktop", "仿真报告"))
+        path_entry = tk.Entry(pf, textvariable=path_var, font=(SYSTEM_FONT, 10), width=30)
+        path_entry.pack(side="left", padx=(10, 4))
+        tk.Button(pf, text="浏览...", font=(SYSTEM_FONT, 9),
+                  command=lambda: self._browse_export_path(path_var, fmt_var.get())
+                  ).pack(side="left")
+
+        def _do_export():
+            fmt = fmt_var.get()
+            base = path_var.get().strip()
+            if not base:
+                messagebox.showwarning("路径为空", "请输入保存路径", parent=dlg)
+                return
+            exts = {"xlsx": ".xlsx", "docx": ".docx", "pdf": ".pdf"}
+            path = base if base.endswith(exts[fmt]) else base + exts[fmt]
+            try:
+                from export_report import export_excel, export_docx, export_pdf
+                th = engine.tick_history
+                if fmt == "xlsx":
+                    path = export_excel(engine, path, th)
+                elif fmt == "docx":
+                    path = export_docx(engine, path, th)
+                else:
+                    path = export_pdf(engine, path, th)
+                dlg.destroy()
+                if sys.platform == "darwin":
+                    os.system(f'open -R "{path}"')
+                elif sys.platform == "win32":
+                    os.system(f'explorer /select,"{path}"')
+                messagebox.showinfo("导出成功", f"已导出到:\n{path}")
+            except ImportError as e:
+                messagebox.showerror("缺少依赖", f"请先安装依赖:\n{e}", parent=dlg)
+            except Exception as e:
+                messagebox.showerror("导出失败", str(e), parent=dlg)
+
+        bf = tk.Frame(dlg, bg="#FFF8DC")
+        bf.pack(pady=(12, 8))
+        self._make_btn(bf, "导出", font=(SYSTEM_FONT, 11, "bold"),
+                       bg="#27AE60", fg="white", active_bg="#1E8449", active_fg="white",
+                       command=_do_export, padx=16, pady=4,
+                       pack_side="left", pack_padx=8)
+        self._make_btn(bf, "取消", font=(SYSTEM_FONT, 10),
+                       bg="#DDD", fg="#333", active_bg="#BBB", active_fg="#333",
+                       command=dlg.destroy, padx=12, pady=4,
+                       pack_side="left", pack_padx=8)
+
+    def _browse_export_path(self, path_var, fmt):
+        """浏览保存路径"""
+        exts = {"xlsx": [("Excel 文件", "*.xlsx")],
+                "docx": [("Word 文件", "*.docx")],
+                "pdf": [("PDF 文件", "*.pdf")]}
+        filepath = filedialog.asksaveasfilename(
+            title="保存报告",
+            filetypes=exts.get(fmt, [("All", "*.*")]),
+            defaultextension=f".{fmt}",
+            initialdir=os.path.expanduser("~/Desktop"),
+            initialfile="仿真报告"
+        )
+        if filepath:
+            path_var.set(filepath)
 
     # ---------- 错峰对比 ----------
     def _run_peak_shift(self):

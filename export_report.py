@@ -274,6 +274,70 @@ def export_docx(engine_or_stats, filepath: str = "simulation_report.docx",
     return os.path.abspath(filepath)
 
 
+def export_pdf(engine_or_stats, filepath: str = "simulation_report.pdf",
+               tick_history: List = None) -> str:
+    """导出 PDF 报告（使用 matplotlib 渲染）"""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_pdf import PdfPages
+
+    if hasattr(engine_or_stats, 'get_statistics'):
+        stats = engine_or_stats.get_statistics()
+        th = tick_history or getattr(engine_or_stats, 'tick_history', [])
+    else:
+        stats = engine_or_stats
+        th = tick_history or []
+
+    try:
+        plt.rcParams['font.sans-serif'] = ['PingFang SC', 'Microsoft YaHei', 'Heiti SC', 'SimHei']
+        plt.rcParams['axes.unicode_minus'] = False
+    except Exception:
+        pass
+
+    with PdfPages(filepath) as pdf:
+        # 封面
+        fig = plt.figure(figsize=(8.27, 11.69))  # A4
+        fig.suptitle("BJTU 食堂就餐流量仿真报告", fontsize=20, fontweight='bold', y=0.95)
+        fig.text(0.5, 0.85, f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                ha='center', fontsize=11, color='#666')
+        fig.text(0.5, 0.80, "北京交通大学 — 软件综合实训第二小组",
+                ha='center', fontsize=13)
+
+        # 核心指标表
+        metrics = [
+            ("仿真周期数", "current_tick", ""),
+            ("总生成学生数", "total_students_generated", "人"),
+            ("总服务学生数", "total_students_served", "人"),
+            ("最大排队人数", "max_queue_length", "人"),
+            ("平均等待时间", "average_wait_time", "tick"),
+            ("最终活跃学生数", "final_active_students", "人"),
+        ]
+        y = 0.68
+        fig.text(0.1, y + 0.04, "核心仿真指标", fontsize=14, fontweight='bold')
+        y -= 0.04
+        for i, (label, key, unit) in enumerate(metrics):
+            val = str(_safe_stat(stats, key))
+            fig.text(0.12, y - i * 0.05, f"{label}:  {val} {unit}", fontsize=12)
+        pdf.savefig(fig)
+        plt.close(fig)
+
+        # 排队曲线图
+        if th:
+            fig2, ax = plt.subplots(figsize=(10, 5))
+            ticks = list(range(1, len(th) + 1))
+            queues = [td.get('total_queue_length', 0) for td in th]
+            ax.fill_between(ticks, 0, queues, alpha=0.3, color='#E74C3C')
+            ax.plot(ticks, queues, color='#E74C3C', linewidth=2)
+            ax.set_title("排队人数变化曲线", fontsize=14, fontweight='bold')
+            ax.set_xlabel("仿真周期 (tick)"); ax.set_ylabel("排队人数")
+            ax.grid(True, alpha=0.3)
+            pdf.savefig(fig2)
+            plt.close(fig2)
+
+    return os.path.abspath(filepath)
+
+
 def export_both(engine, tick_history=None, output_dir: str = ".") -> Dict[str, str]:
     """同时导出 Excel 和 Word"""
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
