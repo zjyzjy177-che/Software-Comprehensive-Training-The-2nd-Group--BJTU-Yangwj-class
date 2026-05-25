@@ -1125,6 +1125,23 @@ class BJTUSimulationGUI:
                                    relief="solid", bd=1, height=12)
         self.result_text.pack(fill="both", expand=True)
 
+        # 导出按钮（仿真完成后出现）
+        self.export_frame = tk.Frame(self.lf_result, bg=self.BG)
+        self.btn_export_xlsx = self._make_btn(self.export_frame, "导出 Excel",
+                                               font=(SYSTEM_FONT, 9, "bold"),
+                                               bg="#27AE60", fg=self.WHITE,
+                                               active_bg="#1E8449", active_fg=self.WHITE,
+                                               command=lambda: self._export_report("xlsx"),
+                                               padx=8, pady=3,
+                                               pack_side="left", pack_padx=3)
+        self.btn_export_docx = self._make_btn(self.export_frame, "导出 Word",
+                                               font=(SYSTEM_FONT, 9, "bold"),
+                                               bg="#2980B9", fg=self.WHITE,
+                                               active_bg="#1F6DA0", active_fg=self.WHITE,
+                                               command=lambda: self._export_report("docx"),
+                                               padx=8, pady=3,
+                                               pack_side="left", pack_padx=3)
+
     # ====================== 语言切换 ======================
     def _set_lang_btn_style(self, code, bg_color):
         frame, lbl = self._lang_btns[code]
@@ -1555,6 +1572,34 @@ class BJTUSimulationGUI:
         messagebox.showinfo(self.t("register_success"),
                             self.t("register_done", role=role_display, uid=uid, pwd=default_pwd))
 
+    # ---------- 导出报告 ----------
+    def _export_report(self, fmt="xlsx"):
+        """导出仿真结果为 Excel/Word"""
+        engine = getattr(self, '_last_engine', None)
+        if engine is None:
+            messagebox.showwarning("导出失败", "没有可导出的仿真结果，请先运行仿真")
+            return
+        try:
+            from export_report import export_excel, export_docx
+            import os, sys
+            desktop = os.path.expanduser("~/Desktop")
+            if fmt == "xlsx":
+                path = export_excel(engine, os.path.join(desktop, "仿真报告.xlsx"),
+                                   engine.tick_history)
+            else:
+                path = export_docx(engine, os.path.join(desktop, "仿真报告.docx"),
+                                  engine.tick_history)
+            # 打开文件所在文件夹
+            if sys.platform == "darwin":
+                os.system(f'open -R "{path}"')
+            elif sys.platform == "win32":
+                os.system(f'explorer /select,"{path}"')
+            messagebox.showinfo("导出成功", f"已导出到桌面:\n{os.path.basename(path)}")
+        except ImportError as e:
+            messagebox.showerror("缺少依赖", f"请先安装: pip install openpyxl python-docx\n{e}")
+        except Exception as e:
+            messagebox.showerror("导出失败", str(e))
+
     # ---------- 错峰对比 ----------
     def _run_peak_shift(self):
         """在 GUI 中运行错峰对比分析并展示结果图（线程化，逐 gap 检查中断标志）"""
@@ -1833,7 +1878,8 @@ class BJTUSimulationGUI:
         enable_viz = config_dict['enable_visualization']
         self.launch_btn._lbl.config(text=self.t("launching"))
         self.launch_btn.config(cursor="watch")
-        self.stop_btn.pack(side="left", padx=2, pady=2)  # 显示强制停止按钮
+        self.stop_btn.pack(side="left", padx=2, pady=2)
+        self.export_frame.pack_forget()  # 新仿真隐藏导出按钮
         self.result_text.delete("1.0", tk.END)
         self.result_text.insert(tk.END, self.t("running_msg"))
         self.root.update()
@@ -1867,12 +1913,17 @@ class BJTUSimulationGUI:
             thread.start()
 
     def _display_result(self, result):
-        self.stop_btn.pack_forget()  # 隐藏强制停止按钮
+        self.stop_btn.pack_forget()
         self.launch_btn._lbl.config(text=self.t("launch_btn"))
         self.launch_btn.config(cursor="hand2")
         self.result_text.delete("1.0", tk.END)
+        self.export_frame.pack_forget()
 
         if result['success']:
+            # 存引擎引用供导出
+            if result.get('engine'):
+                self._last_engine = result['engine']
+                self.export_frame.pack(fill="x", pady=(4, 0))
             stats = result['statistics']
             self.result_text.insert(tk.END, "=" * 50 + "\n")
             self.result_text.insert(tk.END, f"  {self.t('sim_complete')}\n")

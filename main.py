@@ -315,7 +315,8 @@ def run_simulation_from_gui(config_dict: Dict[str, Any]) -> Dict[str, Any]:
             'success': True,
             'statistics': engine.get_statistics(),
             'summary': generate_summary_text(engine),
-            'error': None
+            'error': None,
+            'engine': engine,
         }
     except Exception as e:
         import traceback

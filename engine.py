@@ -766,7 +766,7 @@ class SimulationEngine:
         total_wait_time = sum(student.total_wait_time for student in self.students)
         avg_wait_time = total_wait_time / total_students if total_students > 0 else 0
 
-        # 更新全局统计
+        self.global_statistics['current_tick'] = self.current_tick
         self.global_statistics['total_students_served'] = sum(canteen.served_count for canteen in self.canteens)
         self.global_statistics['total_wait_time'] = total_wait_time
         self.global_statistics['max_queue_length'] = max(
@@ -775,6 +775,18 @@ class SimulationEngine:
         )
         self.global_statistics['average_wait_time'] = avg_wait_time
         self.global_statistics['student_state_counts'] = state_counts
+        self.global_statistics['final_active_students'] = len(self.active_students)
+        # 各食堂统计数据
+        canteen_stats = {}
+        for c in self.canteens:
+            canteen_stats[c.name] = {
+                'served': c.served_count,
+                'max_queue': c.max_queue_length,
+                'current_queue': c.get_total_queue_length(),
+                'capacity': c.capacity,
+                'window_count': getattr(c, 'window_count', len(c.windows)),
+            }
+        self.global_statistics['canteen_statistics'] = canteen_stats
 
         # 记录Tick历史
         tick_record = {
