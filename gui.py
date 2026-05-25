@@ -1576,7 +1576,7 @@ class BJTUSimulationGUI:
 
         dlg = tk.Toplevel(self.root)
         dlg.title("导出仿真报告")
-        dlg.geometry("380x250")
+        dlg.geometry("420x300")
         dlg.resizable(False, False)
         dlg.config(bg="#FFF8DC")
         dlg.transient(self.root)
@@ -1944,7 +1944,7 @@ class BJTUSimulationGUI:
         """仿真前的自动保存设置弹窗，返回设置 dict 或 None（取消）"""
         dlg = tk.Toplevel(self.root)
         dlg.title("仿真保存设置")
-        dlg.geometry("420x300")
+        dlg.geometry("440x360")
         dlg.resizable(False, False)
         dlg.config(bg="#F0F8FF")
         dlg.transient(self.root)
