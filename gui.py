@@ -589,7 +589,8 @@ class BJTUSimulationGUI:
         self.captcha_code = ""
         self.lang = "zh_CN"
         self._flash_job = None
-        self._config_data = None  # 从 JSON 加载的完整配置（含坐标覆盖）
+        self._config_data = None
+        self._auto_save_settings = None  # 自动保存设置
         self._peak_stop_requested = False  # 错峰对比中断标志
 
         # 先创建 root 以便 _detect_system_font 可用
@@ -1618,8 +1619,12 @@ class BJTUSimulationGUI:
             if not base:
                 messagebox.showwarning("路径为空", "请输入保存路径", parent=dlg)
                 return
+            for old_ext in [".xlsx", ".docx", ".pdf"]:
+                if base.endswith(old_ext):
+                    base = base[:-len(old_ext)]
+                    break
             exts = {"xlsx": ".xlsx", "docx": ".docx", "pdf": ".pdf"}
-            path = base if base.endswith(exts[fmt]) else base + exts[fmt]
+            path = base + exts[fmt]
             try:
                 from export_report import export_excel, export_docx, export_pdf
                 th = engine.tick_history
@@ -1651,8 +1656,34 @@ class BJTUSimulationGUI:
                        command=dlg.destroy, padx=12, pady=4,
                        pack_side="left", pack_padx=8)
 
+    def _auto_save(self, engine, settings):
+        """根据设置自动保存仿真结果"""
+        try:
+            from export_report import export_excel, export_docx, export_pdf
+            th = engine.tick_history
+            base = settings.get("path", os.path.join(os.path.expanduser("~"), "Desktop", "仿真报告"))
+            saved = []
+            for fmt in settings.get("formats", ["xlsx"]):
+                for old_ext in [".xlsx", ".docx", ".pdf"]:
+                    if base.endswith(old_ext):
+                        base = base[:-len(old_ext)]
+                        break
+                exts = {"xlsx": ".xlsx", "docx": ".docx", "pdf": ".pdf"}
+                path = base + exts[fmt]
+                if fmt == "xlsx":
+                    export_excel(engine, path, th)
+                elif fmt == "docx":
+                    export_docx(engine, path, th)
+                else:
+                    export_pdf(engine, path, th)
+                saved.append(os.path.basename(path))
+            if saved:
+                self.result_text.insert(tk.END, f"\n[自动保存] {', '.join(saved)}\n")
+        except Exception as e:
+            self.result_text.insert(tk.END, f"\n[自动保存失败] {e}\n")
+
     def _browse_export_path(self, path_var, fmt):
-        """浏览保存路径"""
+        """浏览保存路径，去掉系统自动加的后缀"""
         exts = {"xlsx": [("Excel 文件", "*.xlsx")],
                 "docx": [("Word 文件", "*.docx")],
                 "pdf": [("PDF 文件", "*.pdf")]}
@@ -1664,6 +1695,11 @@ class BJTUSimulationGUI:
             initialfile="仿真报告"
         )
         if filepath:
+            # 去掉系统对话可能添加的任何已知后缀
+            for ext in [".xlsx", ".docx", ".pdf"]:
+                if filepath.endswith(ext):
+                    filepath = filepath[:-len(ext)]
+                    break
             path_var.set(filepath)
 
     # ---------- 错峰对比 ----------
@@ -1787,12 +1823,18 @@ class BJTUSimulationGUI:
             info=f"{role_display} | {self.current_user}"))
         self.status_bar.config(text=self.t("status_logged_in").format(
             role=role_display, user=self.current_user))
+        # 强制刷新防 macOS 空白
+        self.root.update_idletasks()
 
     def _back_to_login(self):
         self.current_user = None
         self.current_role = None
         self._config_data = None
+        self._last_engine = None
+        self._auto_save_settings = None
         self.btn_usermgr.pack_forget()
+        self.export_frame.pack_forget()
+        self.result_text.delete("1.0", tk.END)
         self.config_frame.pack_forget()
         self.login_frame.pack(fill="both", expand=True)
         self.info_user_label.config(text=self.t("current_user_none"))
@@ -1898,6 +1940,96 @@ class BJTUSimulationGUI:
             self.btn_peak._lbl.config(text=self.t("peak_shift_btn"))
 
     # ---------- 启动仿真 ----------
+    def _show_auto_save_dialog(self):
+        """仿真前的自动保存设置弹窗，返回设置 dict 或 None（取消）"""
+        dlg = tk.Toplevel(self.root)
+        dlg.title("仿真保存设置")
+        dlg.geometry("420x300")
+        dlg.resizable(False, False)
+        dlg.config(bg="#F0F8FF")
+        dlg.transient(self.root)
+        dlg.grab_set()
+        dlg.update_idletasks()
+        x = self.root.winfo_x() + (600 - 420) // 2
+        y = self.root.winfo_y() + (690 - 300) // 2
+        dlg.geometry(f"+{x}+{y}")
+
+        tk.Label(dlg, text="仿真保存设置", font=(SYSTEM_FONT, 14, "bold"),
+                 bg="#2980B9", fg="white", pady=8).pack(fill="x")
+
+        # 启用自动保存
+        auto_var = tk.BooleanVar(value=bool(self._auto_save_settings))
+        cb = tk.Checkbutton(dlg, text="仿真完成后自动保存结果", variable=auto_var,
+                            font=(SYSTEM_FONT, 11, "bold"), bg="#F0F8FF",
+                            activebackground="#F0F8FF")
+        cb.pack(anchor="w", padx=15, pady=(10, 2))
+
+        # 格式选择
+        tk.Label(dlg, text="保存格式：", font=(SYSTEM_FONT, 10),
+                 bg="#F0F8FF").pack(anchor="w", padx=20, pady=(6, 2))
+        fmt_frame = tk.Frame(dlg, bg="#F0F8FF")
+        fmt_frame.pack(anchor="w", padx=25)
+        xlsx_var = tk.BooleanVar(value=True)
+        docx_var = tk.BooleanVar(value=False)
+        pdf_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(fmt_frame, text="Excel (.xlsx)", variable=xlsx_var,
+                       font=(SYSTEM_FONT, 10), bg="#F0F8FF",
+                       activebackground="#F0F8FF").pack(anchor="w")
+        tk.Checkbutton(fmt_frame, text="Word (.docx)", variable=docx_var,
+                       font=(SYSTEM_FONT, 10), bg="#F0F8FF",
+                       activebackground="#F0F8FF").pack(anchor="w")
+        tk.Checkbutton(fmt_frame, text="PDF (.pdf)", variable=pdf_var,
+                       font=(SYSTEM_FONT, 10), bg="#F0F8FF",
+                       activebackground="#F0F8FF").pack(anchor="w")
+
+        # 保存路径
+        tk.Label(dlg, text="保存路径：", font=(SYSTEM_FONT, 10),
+                 bg="#F0F8FF").pack(anchor="w", padx=20, pady=(8, 2))
+        path_frame = tk.Frame(dlg, bg="#F0F8FF")
+        path_frame.pack(anchor="w", padx=20)
+        default_path = os.path.join(os.path.expanduser("~"), "Desktop", "仿真报告")
+        path_var = tk.StringVar(value=default_path)
+        tk.Entry(path_frame, textvariable=path_var, font=(SYSTEM_FONT, 10),
+                 width=32).pack(side="left")
+        tk.Button(path_frame, text="浏览", font=(SYSTEM_FONT, 9),
+                  command=lambda: self._browse_export_path(path_var, "xlsx")
+                  ).pack(side="left", padx=4)
+
+        result = {"confirmed": False}
+
+        def _on_start():
+            if auto_var.get():
+                fmts = []
+                if xlsx_var.get(): fmts.append("xlsx")
+                if docx_var.get(): fmts.append("docx")
+                if pdf_var.get(): fmts.append("pdf")
+                if not fmts:
+                    messagebox.showwarning("未选格式", "请至少选择一种保存格式", parent=dlg)
+                    return
+                result["settings"] = {
+                    "enabled": True,
+                    "formats": fmts,
+                    "path": path_var.get().strip(),
+                }
+            else:
+                result["settings"] = {"enabled": False}
+            result["confirmed"] = True
+            dlg.destroy()
+
+        bf = tk.Frame(dlg, bg="#F0F8FF")
+        bf.pack(pady=(16, 8))
+        self._make_btn(bf, "启动仿真", font=(SYSTEM_FONT, 12, "bold"),
+                       bg="#2980B9", fg="white", active_bg="#1F6DA0", active_fg="white",
+                       command=_on_start, padx=20, pady=5,
+                       pack_side="left", pack_padx=10)
+        self._make_btn(bf, "取消", font=(SYSTEM_FONT, 10),
+                       bg="#DDD", fg="#333", active_bg="#BBB", active_fg="#333",
+                       command=dlg.destroy, padx=14, pady=4,
+                       pack_side="left", pack_padx=10)
+
+        dlg.wait_window()
+        return result.get("settings") if result["confirmed"] else None
+
     def _launch_simulation(self):
         if self.current_user is None:
             messagebox.showwarning(self.t("not_login_warn"), self.t("not_login_msg"))
@@ -1907,6 +2039,12 @@ class BJTUSimulationGUI:
         if errors:
             messagebox.showwarning(self.t("param_invalid"), "\n".join(errors))
             return
+
+        # 弹出自动保存设置窗口
+        auto_save = self._show_auto_save_dialog()
+        if auto_save is None:  # 用户取消
+            return
+        self._auto_save_settings = auto_save
 
         # 参数上限检查：超过建议值弹确认框
         limit_warnings = []
@@ -1990,6 +2128,10 @@ class BJTUSimulationGUI:
             if result.get('engine'):
                 self._last_engine = result['engine']
                 self.export_frame.pack(fill="x", pady=(4, 0))
+                # 自动保存（如果用户在弹窗中启用了）
+                aset = self._auto_save_settings
+                if aset and aset.get("enabled"):
+                    self._auto_save(result['engine'], aset)
             stats = result['statistics']
             self.result_text.insert(tk.END, "=" * 50 + "\n")
             self.result_text.insert(tk.END, f"  {self.t('sim_complete')}\n")
