@@ -697,13 +697,6 @@ class CanteenVisualizer:
             t2 = ax.text(bar_x + bar_w + 0.02, y0 + bar_h/2,
                         str(queue_len), transform=ax.transAxes,
                         fontsize=11, fontweight='bold', color='#CC0000', va='center')
-            self._bar_texts.append(t2)
-
-        if len(canteens) > max_show:
-            t = ax.text(0.02, 0.01,
-                       _viz_t("canteen_remaining", lang, count=len(canteens) - max_show),
-                       transform=ax.transAxes, fontsize=9, color='#999999')
-            self._bar_texts.append(t)
 
     def _draw_clock(self, tick: int):
         """在独立 axes 上绘制粉色模拟钟表 + 数字时钟"""

@@ -236,18 +236,30 @@ class SimulationEngine:
         canteen_names_cfg = self.config.get('canteen_names', [])
         window_counts = self.config.get('window_counts', [])
 
-        for i in range(canteen_count):
+        open_canteens = self.config.get('open_canteens', [])
+        # 遍历所有可选位置，只创建勾选的食堂
+        max_available = len(canteen_names_cfg) if canteen_names_cfg else 4
+        created = 0
+        for i in range(max_available):
+            if created >= canteen_count:
+                break
             # 确定食堂位置
             if canteen_positions and i < len(canteen_positions):
                 position = tuple(canteen_positions[i])
             else:
                 position = self._generate_random_position()
 
-            # 确定食堂名称（优先使用配置中的名称）
+            # 确定食堂名称
             if i < len(canteen_names_cfg):
                 name = canteen_names_cfg[i]
             else:
                 name = f"食堂{i+1}"
+
+            # 用户只开放了部分食堂
+            if open_canteens and name not in open_canteens:
+                continue
+
+            created += 1
 
             # 确定窗口数量（优先使用配置）
             if i < len(window_counts):
@@ -281,7 +293,10 @@ class SimulationEngine:
         student_count = self.config['student_count']
         start_positions = self.config.get('student_start_positions')
 
-        # 初始生成约 1/6 的学生（清晨宿舍出发），其余由课表事件逐步生成至上限
+        # 初始生成约 1/6 学生，非营业时段不生成
+        h, m = self._tick_to_sim_time(0)
+        if not self._is_canteen_open(f"{h:02d}:{m:02d}"):
+            return
         initial_count = max(5, student_count // 6)
 
         # 优先从宿舍生成
@@ -442,6 +457,17 @@ class SimulationEngine:
         # 晚餐高峰 18:00-19:00
         if hour == 18:
             return True
+        return False
+
+    def _is_canteen_open(self, current_time: str) -> bool:
+        """检查当前时间是否有食堂在营业"""
+        canteen_hours = self.config.get('canteen_hours', [])
+        if not canteen_hours:
+            return True  # 没配置营业时间则默认全时段开放
+        for slot in canteen_hours:
+            if slot['start'] <= current_time <= slot['end']:
+                return True
+        return False
         return False
 
     def _get_schedule_events(self, current_time: str) -> tuple:
@@ -607,16 +633,14 @@ class SimulationEngine:
 
     def _spawn_students(self) -> None:
         """
-        生成新学生（内部方法）—— 基于课表时间的智能生成
-
-        根据课表时间和就餐高峰期动态调整学生生成：
-        - 下课时间点：爆发式生成学生（从教学楼、宿舍、其他教学楼出发去食堂）
-        - 就餐高峰期（11:30-12:20, 18:00-19:00）：大幅提高生成率
-        - 上课时间点：学生回教学楼，去食堂的流量自然降低
-        - 正常时间：按基础概率生成
+        生成新学生（内部方法）—— 基于课表时间，仅在食堂营业时段生成
         """
         hour, minute = self._tick_to_sim_time(self.current_tick)
         current_time = f"{hour:02d}:{minute:02d}"
+
+        # 食堂全部关闭时不生成新学生（已有学生可继续移动）
+        if not self._is_canteen_open(current_time):
+            return
 
         # 检查课表事件（下课/上课）
         class_ends, class_starts = self._get_schedule_events(current_time)

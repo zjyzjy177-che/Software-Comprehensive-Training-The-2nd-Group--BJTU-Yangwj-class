@@ -331,8 +331,15 @@ class BJTUConfig:
                 'lunch': ('11:30', '12:20'),    # 午餐高峰期
                 'dinner': ('18:00', '19:00'),   # 晚餐高峰期
             },
-            'class_end_burst_size': 120,        # 下课时每次爆发生成的学生总数
-            'peak_spawn_multiplier': 2.0,       # 高峰期生成倍率
+            'class_end_burst_size': 120,
+            'peak_spawn_multiplier': 2.0,
+            # 食堂营业时间（24h制），非营业时段已有学生继续服务但不接收新生
+            'canteen_hours': [
+                {'start': '07:00', 'end': '09:00'},
+                {'start': '11:30', 'end': '13:50'},
+                {'start': '17:30', 'end': '19:00'},
+                {'start': '21:00', 'end': '23:00'},
+            ],
 
             # 其他参数
             'random_seed': None,         # 随机种子
@@ -373,13 +380,7 @@ class BJTUConfig:
         for name, coord in self.coordinates.items():
             if any(kw in name for kw in canteen_keywords):
                 positions.append(coord)
-        target = self.simulation_params.get('canteen_count', 4) if hasattr(self, 'simulation_params') else 4
-        if len(positions) < target:
-            import random
-            print(f"警告：坐标字典中仅找到 {len(positions)} 个食堂，补全随机坐标")
-            while len(positions) < target:
-                positions.append((random.uniform(-200, 400), random.uniform(-350, 150)))
-        return positions[:target]
+        return positions  # 返回全部食堂，由 engine 按 open_canteens 过滤
 
     def _validate_config(self) -> None:
         """
@@ -479,7 +480,7 @@ class BJTUConfig:
         for name in self.coordinates:
             if any(kw in name for kw in canteen_keywords):
                 canteen_names.append(name)
-        config['canteen_names'] = canteen_names[:config['canteen_count']]
+        config['canteen_names'] = canteen_names  # 不截断，由 engine 按 open_canteens 过滤
 
         # 添加学生生成位置（教学楼和宿舍楼坐标）
         spawn_building_keywords = ['教学楼', '教', '宿舍', '嘉园', '公寓', '楼']

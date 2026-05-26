@@ -972,7 +972,6 @@ class BJTUSimulationGUI:
         params = [
             ("ticks_label", "entry_ticks", "600", "ticks"),
             ("students_label", "entry_students", "30", "students"),
-            ("canteens_label", "entry_canteens", "2", "canteens"),
             ("spawn_label", "entry_spawn", "0.08", "spawn"),
         ]
         self._config_param_labels = []
@@ -992,6 +991,32 @@ class BJTUSimulationGUI:
             entry.insert(0, default)
             entry.grid(row=i, column=2, padx=(0, 5), pady=6, sticky="w")
             setattr(self, attr, entry)
+
+        # 仿真开始时间
+        i = len(params)
+        lbl = tk.Label(self.lf_params, text="仿真开始时间:", font=(SYSTEM_FONT, 11), bg=self.BG)
+        lbl.grid(row=i, column=0, padx=(5, 0), pady=6, sticky="e")
+        self._config_param_labels.append((lbl, "开始时间"))
+        tip_st = tk.Label(self.lf_params, text="?", font=(SYSTEM_FONT, 9, "bold"),
+                          bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow", width=2, relief="flat")
+        tip_st.grid(row=i, column=1, padx=(0, 3), pady=6, sticky="w")
+        ToolTip(tip_st, lambda: "仿真开始时钟时间 (HH:MM)\n• 例如 07:00 或 11:30\n• 钟表从此时间开始计时\n• 课表事件按此时间触发")
+        self.entry_start_time = tk.Entry(self.lf_params, font=(SYSTEM_FONT, 11), width=12, relief="solid", bd=1)
+        self.entry_start_time.insert(0, "07:00")
+        self.entry_start_time.grid(row=i, column=2, padx=(0, 5), pady=6, sticky="w")
+
+        # 食堂勾选（仿真参数内）
+        i += 1
+        tk.Label(self.lf_params, text="开放食堂:", font=(SYSTEM_FONT, 11), bg=self.BG
+                 ).grid(row=i, column=0, padx=(5, 0), pady=6, sticky="e")
+        self._canteen_vars = {}
+        cf = tk.Frame(self.lf_params, bg=self.BG)
+        cf.grid(row=i, column=1, columnspan=2, padx=5, pady=6, sticky="w")
+        for idx, name in enumerate(["四食堂", "一食堂", "留园", "学活食堂"]):
+            var = tk.BooleanVar(value=(idx < 2))
+            self._canteen_vars[name] = var
+            tk.Checkbutton(cf, text=name, variable=var, font=(SYSTEM_FONT, 10),
+                          bg=self.BG, activebackground=self.BG).pack(side="left", padx=4)
 
         # 策略选择
         self.lf_strategy = tk.LabelFrame(self.config_scrollable, text=self.t("strategy_label"),
@@ -1055,6 +1080,7 @@ class BJTUSimulationGUI:
                                       fg=self.BLUE_DARK, padx=10, pady=10)
         self.lf_other.pack(fill="x", padx=10, pady=8)
 
+
         self.enable_viz_var = tk.BooleanVar(value=False)
         self.cb_viz = tk.Checkbutton(self.lf_other, text=self.t("enable_viz"),
                                      variable=self.enable_viz_var, font=(SYSTEM_FONT, 11),
@@ -1065,18 +1091,6 @@ class BJTUSimulationGUI:
         tip_viz.grid(row=0, column=1, padx=(0, 5), pady=5, sticky="w")
         ToolTip(tip_viz, lambda: _get_tooltip("viz", self.lang))
 
-        # 仿真开始时间
-        tk.Label(self.lf_other, text="仿真开始时间:", font=(SYSTEM_FONT, 10),
-                 bg=self.BG).grid(row=1, column=0, padx=5, pady=5, sticky="e")
-        self.entry_start_time = tk.Entry(self.lf_other, font=(SYSTEM_FONT, 10), width=6,
-                                          relief="solid", bd=1)
-        self.entry_start_time.insert(0, "07:00")
-        self.entry_start_time.grid(row=1, column=1, padx=5, pady=5, sticky="w")
-        tip_time = tk.Label(self.lf_other, text="?", font=(SYSTEM_FONT, 9, "bold"),
-                            bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow", width=2)
-        tip_time.grid(row=1, column=2, padx=(0, 5), pady=5, sticky="w")
-        ToolTip(tip_time, lambda: "仿真开始时钟时间 (HH:MM)\n• 默认 07:00\n• 例如 11:50 表示中午下课时间\n• 钟表将从此时间开始计时")
-
         self.config_path_var = tk.StringVar()
         self.btn_browse = self._make_btn(self.lf_other, self.t("browse_config"),
                                           font=(SYSTEM_FONT, 10),
@@ -1084,10 +1098,10 @@ class BJTUSimulationGUI:
                                           active_bg="#d0e0f8", active_fg=self.BLUE,
                                           command=self._load_config_file,
                                           padx=8, pady=2)
-        self.btn_browse.grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        self.btn_browse.grid(row=1, column=0, padx=5, pady=5, sticky="w")
         self.lbl_config_path = tk.Label(self.lf_other, textvariable=self.config_path_var,
                                         font=(SYSTEM_FONT, 9), bg=self.BG, fg=self.BLUE)
-        self.lbl_config_path.grid(row=2, column=1, padx=5, pady=5, sticky="w")
+        self.lbl_config_path.grid(row=1, column=1, padx=5, pady=5, sticky="w")
 
         # 错峰对比按钮
         self.btn_peak = self._make_btn(self.lf_other, self.t("peak_shift_btn"),
@@ -1871,7 +1885,6 @@ class BJTUSimulationGUI:
             for entry, key in [
                 (self.entry_ticks, "max_ticks"),
                 (self.entry_students, "student_count"),
-                (self.entry_canteens, "canteen_count"),
                 (self.entry_spawn, "spawn_rate"),
             ]:
                 entry.delete(0, tk.END)
@@ -1916,13 +1929,6 @@ class BJTUSimulationGUI:
                 errors.append(self.t("students_not_negative"))
         except ValueError:
             errors.append(self.t("students_must_int"))
-
-        try:
-            canteens = int(self.entry_canteens.get())
-            if canteens <= 0:
-                errors.append(self.t("canteens_must_positive"))
-        except ValueError:
-            errors.append(self.t("canteens_must_int"))
 
         try:
             spawn_rate = float(self.entry_spawn.get())
@@ -2062,13 +2068,11 @@ class BJTUSimulationGUI:
         limit_warnings = []
         ticks_val = int(self.entry_ticks.get())
         students_val = int(self.entry_students.get())
-        canteens_val = int(self.entry_canteens.get())
         lang = self.lang
         if ticks_val > _PARAM_LIMITS["ticks"]:
             limit_warnings.append(_PARAM_LIMIT_WARNINGS.get(lang, _PARAM_LIMIT_WARNINGS["zh_CN"])["ticks"])
         if students_val > _PARAM_LIMITS["students"]:
             limit_warnings.append(_PARAM_LIMIT_WARNINGS.get(lang, _PARAM_LIMIT_WARNINGS["zh_CN"])["students"])
-        if canteens_val > _PARAM_LIMITS["canteens"]:
             limit_warnings.append(_PARAM_LIMIT_WARNINGS.get(lang, _PARAM_LIMIT_WARNINGS["zh_CN"])["canteens"])
         if limit_warnings:
             msg = self.t("limit_warn_msg") + "\n\n"
@@ -2077,12 +2081,18 @@ class BJTUSimulationGUI:
             if not messagebox.askyesno(self.t("limit_warn_title"), msg):
                 return
 
+        open_canteens = [n for n, v in self._canteen_vars.items() if v.get()]
+        if len(open_canteens) < 1:
+            messagebox.showwarning("未选择食堂", "请至少勾选一个开放的食堂")
+            return
+
         config_dict = {
             'max_ticks': int(self.entry_ticks.get()),
             'student_count': int(self.entry_students.get()),
-            'canteen_count': int(self.entry_canteens.get()),
+            'canteen_count': len(open_canteens),
             'spawn_rate': float(self.entry_spawn.get()),
             'enable_visualization': self.enable_viz_var.get(),
+            'open_canteens': open_canteens,
             'algorithm_params': {
                 'distance_weight': self.alpha_var.get(),
                 'queue_weight': self.beta_var.get(),

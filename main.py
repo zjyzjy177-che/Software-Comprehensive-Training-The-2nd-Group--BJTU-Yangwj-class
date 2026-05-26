@@ -371,6 +371,7 @@ def create_config_from_gui(gui_config: Dict[str, Any]) -> Dict[str, Any]:
     config_obj.simulation_params['enable_visualization'] = gui_config.get('enable_visualization', False)
     config_obj.simulation_params['lang'] = gui_config.get('lang', 'zh_CN')
     config_obj.simulation_params['sim_start_time'] = gui_config.get('sim_start_time', '07:00')
+    config_obj.open_canteens = gui_config.get('open_canteens', [])
 
     if 'random_seed' in gui_config:
         config_obj.simulation_params['random_seed'] = gui_config['random_seed']
@@ -380,6 +381,7 @@ def create_config_from_gui(gui_config: Dict[str, Any]) -> Dict[str, Any]:
 
     config = config_obj.get_simulation_config()
     config['_config_obj'] = config_obj
+    config['open_canteens'] = getattr(config_obj, 'open_canteens', [])
     return config
 
 
