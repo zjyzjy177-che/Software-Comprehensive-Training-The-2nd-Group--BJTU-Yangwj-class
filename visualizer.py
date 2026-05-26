@@ -236,6 +236,8 @@ class CanteenVisualizer:
         self.queue_bars = []        # 排队柱状图
         self.stat_lines = []        # 统计曲线
         self.text_labels = []       # 文本标签
+        self._bar_patches = []      # 条带 patches
+        self._bar_texts = []        # 条带文字
 
         # 数据历史（用于统计图）
         self.tick_history = []      # 周期历史
@@ -697,6 +699,7 @@ class CanteenVisualizer:
             t2 = ax.text(bar_x + bar_w + 0.02, y0 + bar_h/2,
                         str(queue_len), transform=ax.transAxes,
                         fontsize=11, fontweight='bold', color='#CC0000', va='center')
+            self._bar_texts.append(t2)
 
     def _draw_clock(self, tick: int):
         """在独立 axes 上绘制粉色模拟钟表 + 数字时钟"""

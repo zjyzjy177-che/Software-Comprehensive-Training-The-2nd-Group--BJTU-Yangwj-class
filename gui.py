@@ -1031,6 +1031,7 @@ class BJTUSimulationGUI:
         tip_strat.grid(row=0, column=1, padx=(0, 3), pady=6, sticky="w")
         ToolTip(tip_strat, lambda: _get_tooltip("strategy", self.lang))
         self.strategy_var = tk.StringVar(value="balanced")
+        self.strategy_var.trace_add("write", self._on_strategy_change)
         ttk.Combobox(self.lf_strategy, textvariable=self.strategy_var,
                      values=["distance", "queue", "balanced"],
                      state="readonly", font=(SYSTEM_FONT, 11), width=14).grid(
@@ -1466,6 +1467,16 @@ class BJTUSimulationGUI:
             lbl.pack(side="left", padx=8)
 
     # ====================== 登录逻辑 ======================
+    def _on_strategy_change(self, *args):
+        """选策略时自动调整权重滑块"""
+        s = self.strategy_var.get()
+        preset = {"distance": (0.9, 0.1), "queue": (0.1, 0.9), "balanced": (0.5, 0.5)}
+        if s in preset:
+            a, b = preset[s]
+            self.alpha_var.set(a); self.beta_var.set(b)
+            self.alpha_label.config(text=f"{a:.1f}")
+            self.beta_label.config(text=f"{b:.1f}")
+
     def _on_role_change(self, *args):
         pass
 
