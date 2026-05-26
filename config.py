@@ -291,9 +291,6 @@ class BJTUConfig:
                 '思源西楼': [
                     {'start': '08:00', 'end': '09:50'},
                     {'start': '10:30', 'end': '12:20'},
-                    {'start': '14:10', 'end': '16:00'},
-                    {'start': '16:20', 'end': '18:10'},
-                    {'start': '19:00', 'end': '20:50'},
                 ],
                 '第九教学楼': [
                     {'start': '08:00', 'end': '09:50'},
@@ -334,8 +331,8 @@ class BJTUConfig:
                 'lunch': ('11:30', '12:20'),    # 午餐高峰期
                 'dinner': ('18:00', '19:00'),   # 晚餐高峰期
             },
-            'class_end_burst_size': 50,         # 下课时每次爆发生成的学生总数
-            'peak_spawn_multiplier': 5.0,       # 高峰期生成倍率
+            'class_end_burst_size': 120,        # 下课时每次爆发生成的学生总数
+            'peak_spawn_multiplier': 2.0,       # 高峰期生成倍率
 
             # 其他参数
             'random_seed': None,         # 随机种子

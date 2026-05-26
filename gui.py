@@ -1065,6 +1065,18 @@ class BJTUSimulationGUI:
         tip_viz.grid(row=0, column=1, padx=(0, 5), pady=5, sticky="w")
         ToolTip(tip_viz, lambda: _get_tooltip("viz", self.lang))
 
+        # 仿真开始时间
+        tk.Label(self.lf_other, text="仿真开始时间:", font=(SYSTEM_FONT, 10),
+                 bg=self.BG).grid(row=1, column=0, padx=5, pady=5, sticky="e")
+        self.entry_start_time = tk.Entry(self.lf_other, font=(SYSTEM_FONT, 10), width=6,
+                                          relief="solid", bd=1)
+        self.entry_start_time.insert(0, "07:00")
+        self.entry_start_time.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+        tip_time = tk.Label(self.lf_other, text="?", font=(SYSTEM_FONT, 9, "bold"),
+                            bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow", width=2)
+        tip_time.grid(row=1, column=2, padx=(0, 5), pady=5, sticky="w")
+        ToolTip(tip_time, lambda: "仿真开始时钟时间 (HH:MM)\n• 默认 07:00\n• 例如 11:50 表示中午下课时间\n• 钟表将从此时间开始计时")
+
         self.config_path_var = tk.StringVar()
         self.btn_browse = self._make_btn(self.lf_other, self.t("browse_config"),
                                           font=(SYSTEM_FONT, 10),
@@ -1072,10 +1084,10 @@ class BJTUSimulationGUI:
                                           active_bg="#d0e0f8", active_fg=self.BLUE,
                                           command=self._load_config_file,
                                           padx=8, pady=2)
-        self.btn_browse.grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.btn_browse.grid(row=2, column=0, padx=5, pady=5, sticky="w")
         self.lbl_config_path = tk.Label(self.lf_other, textvariable=self.config_path_var,
                                         font=(SYSTEM_FONT, 9), bg=self.BG, fg=self.BLUE)
-        self.lbl_config_path.grid(row=1, column=1, padx=5, pady=5, sticky="w")
+        self.lbl_config_path.grid(row=2, column=1, padx=5, pady=5, sticky="w")
 
         # 错峰对比按钮
         self.btn_peak = self._make_btn(self.lf_other, self.t("peak_shift_btn"),
@@ -2076,6 +2088,7 @@ class BJTUSimulationGUI:
                 'queue_weight': self.beta_var.get(),
             },
             'lang': self.lang,
+            'sim_start_time': self.entry_start_time.get().strip(),
             '_config_data': self._config_data,  # JSON 导入的完整配置（含坐标覆盖）
         }
 

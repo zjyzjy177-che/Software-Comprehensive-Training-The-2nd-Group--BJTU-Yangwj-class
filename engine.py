@@ -469,8 +469,8 @@ class SimulationEngine:
     # ============================================================
 
     def _spawn_single_student(self, position: Tuple[float, float] = None) -> None:
-        """生成单个学生（内部方法），从给定位置出发前往食堂，受 student_count 上限约束"""
-        max_students = self.config.get('student_count', 100)
+        """生成单个学生，上限为 student_count × 5 保证课表波次不断"""
+        max_students = self.config.get('student_count', 100) * 5
         if len(self.students) >= max_students:
             return
 
