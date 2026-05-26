@@ -255,12 +255,17 @@ class SimulationEngine:
             else:
                 wc = random.randint(3, 8)
 
+            # 获取该食堂的门位置
+            canteen_doors_cfg = self.config.get('canteen_doors', {})
+            doors = canteen_doors_cfg.get(name, None)
+
             canteen = Canteen(
                 canteen_id=i,
                 name=name,
                 position=position,
                 window_count=wc,
-                capacity=random.randint(100, 300)
+                capacity=random.randint(100, 300),
+                doors=doors
             )
 
             self.canteens.append(canteen)
@@ -490,18 +495,20 @@ class SimulationEngine:
         if target_canteen:
             speed = self._random_student_speed()
             eating_time = self._random_eating_time()
+            # 从最近的门进入食堂
+            target_door = target_canteen.get_nearest_door(snapped_pos)
             student = Student(
                 student_id=student_id,
                 position=snapped_pos,
-                destination=target_canteen.position,
+                destination=target_door,
                 speed=speed,
                 eating_time=eating_time
             )
             student.target_canteen_id = target_canteen.canteen_id
 
-            # 计算道路路径点
+            # 计算道路路径点到最近的门
             if self.road_network:
-                waypoints = self.road_network.find_path(snapped_pos, target_canteen.position)
+                waypoints = self.road_network.find_path(snapped_pos, target_door)
                 student.waypoints = waypoints
                 student.current_waypoint_idx = 0
 
@@ -618,13 +625,19 @@ class SimulationEngine:
         in_peak = self._is_peak_hour(hour, minute)
 
         # ---- 下课时间：爆发式生成 ----
+        # 就餐高峰下课（12:00/12:20/18:10）→ 满额爆发
+        # 课间下课（09:50等）→ 少量生成（平时换教室也会有人顺路去食堂）
         total_scheduled = len(self.config.get('class_schedules', {}))
         for building_name in class_ends:
-            burst_size = self.config.get('class_end_burst_size', 50)
+            if in_peak:
+                burst_size = self.config.get('class_end_burst_size', 50)
+                mode = '错峰' if len(class_ends) <= total_scheduled / 2 else '共享'
+            else:
+                burst_size = max(5, self.config.get('class_end_burst_size', 50) // 5)
+                mode = '课间'
             self._spawn_class_end_burst(building_name, burst_size,
                                         len(class_ends), total_scheduled)
             if self.current_tick % 50 == 0:
-                mode = '错峰' if len(class_ends) <= total_scheduled / 2 else '共享'
                 print(f"Tick {self.current_tick} ({current_time}): "
                       f"{building_name}下课({mode})，爆发生成{burst_size}名学生")
 

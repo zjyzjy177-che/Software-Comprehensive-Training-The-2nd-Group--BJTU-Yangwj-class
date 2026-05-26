@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(py tests/test_member_b.py)",
-      "Bash(py gui.py)"
+      "Bash(py gui.py)",
+      "Bash(/c/Users/yuesm/AppData/Local/Programs/Python/Python313/python.exe -c ' *)",
+      "Bash(/c/Users/yuesm/AppData/Local/Programs/Python/Python313/python.exe -c \"import docx; print\\('python-docx available'\\)\")",
+      "Bash(/c/Users/yuesm/AppData/Local/Programs/Python/Python313/python.exe -m pip install python-docx -q)",
+      "Bash(/c/Users/yuesm/AppData/Local/Programs/Python/Python313/python.exe generate_report.py)"
     ]
   }
 }

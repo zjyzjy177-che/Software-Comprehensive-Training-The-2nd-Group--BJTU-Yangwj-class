@@ -141,7 +141,8 @@ class CanteenSelector:
         # 步骤1：过滤可用食堂
         available_canteens = []
         for canteen in canteens:
-            distance = self._get_distance(student_pos, canteen.position)
+            nearest_door = canteen.get_nearest_door(student_pos)
+            distance = self._get_distance(student_pos, nearest_door)
             if distance <= self.max_walk_distance:
                 available_canteens.append((canteen, distance))
 
@@ -240,7 +241,8 @@ class CanteenSelector:
         nearest_canteen = None
 
         for canteen in canteens:
-            distance = self._calculate_distance(student_pos, canteen.position)
+            nearest_door = canteen.get_nearest_door(student_pos)
+            distance = self._calculate_distance(student_pos, nearest_door)
             if distance < min_distance:
                 min_distance = distance
                 nearest_canteen = canteen

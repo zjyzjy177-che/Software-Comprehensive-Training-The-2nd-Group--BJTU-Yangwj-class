@@ -492,7 +492,8 @@ class Canteen:
     """
 
     def __init__(self, canteen_id: int, name: str, position: Tuple[float, float],
-                 window_count: int = 5, capacity: int = 200):
+                 window_count: int = 5, capacity: int = 200,
+                 doors: List[Tuple[float, float]] = None):
         """
         初始化食堂对象
 
@@ -502,11 +503,13 @@ class Canteen:
         position: 食堂坐标(x, y)，使用真实地图坐标
         window_count: 窗口数量，默认5个
         capacity: 食堂总容量，默认200人
+        doors: 门/入口位置列表 [(x,y), ...]，默认使用position作为唯一入口
         """
         self.canteen_id = canteen_id
         self.name = name
         self.position = position
         self.capacity = capacity
+        self.doors = doors if doors else [position]  # 无门时回退到中心位置
 
         # 创建窗口
         self.windows = []
@@ -638,6 +641,17 @@ class Canteen:
         for window in self.windows:
             total += window.get_queue_length()
         return total
+
+    def get_nearest_door(self, pos: Tuple[float, float]) -> Tuple[float, float]:
+        """返回离给定坐标最近的门位置"""
+        best = self.position
+        best_dist = float('inf')
+        for door in self.doors:
+            d = math.sqrt((pos[0] - door[0])**2 + (pos[1] - door[1])**2)
+            if d < best_dist:
+                best_dist = d
+                best = door
+        return best
 
     def get_window_count(self) -> int:
         """

@@ -8,10 +8,15 @@
 
 道路段格式：((x_min, x_max), (y_min, y_max))，矩形区域
 连通判定：矩形重叠（含容差）
+
+图结构（v2）：节点=道路交叉口（交叠区域中心），而非路段中心。
+同一条路段上的所有交叉口节点之间用欧氏距离连边，
+使得Dijkstra直接使用真实的沿路行走距离，消除长路段偏差。
 """
 
 import math
 import heapq
+from collections import defaultdict
 from typing import List, Tuple, Optional
 
 
@@ -25,7 +30,7 @@ class RoadNetwork:
 
         参数：
         road_segments: 道路段列表，每项为 ((x_min,x_max),(y_min,y_max))
-        overlap_tolerance: 矩形重叠判定的容差（用于连接相邻但未接触的段）
+        overlap_tolerance: 矩形重叠判定的容差
         """
         # 规范化：确保 min < max
         self.segments = []
@@ -37,7 +42,13 @@ class RoadNetwork:
             self.segments.append(((x_min, x_max), (y_min, y_max)))
 
         self.tolerance = overlap_tolerance
-        self.adj = []  # 邻接表: [(neighbor_idx, distance)]
+
+        # 图结构：节点 = 道路交叉口（交叠区域中心）
+        self.nodes: List[Tuple[float, float]] = []       # 节点坐标
+        self.adj: List[List[Tuple[int, float]]] = []      # 邻接表
+        self.seg_to_nodes: dict = defaultdict(list)       # 路段 → 其上的节点索引
+        self.pair_to_node: dict = {}                      # (seg_i, seg_j) → 节点索引
+
         self._build_graph()
 
     def _segment_center(self, idx: int) -> Tuple[float, float]:
@@ -56,15 +67,45 @@ class RoadNetwork:
         y_overlap = y1_min - t <= y2_max and y2_min - t <= y1_max
         return x_overlap and y_overlap
 
+    def _connection_point(self, i: int, j: int) -> Tuple[float, float]:
+        """两路段交叠区域中心（即道路交叉口），作为图节点"""
+        (x1_min, x1_max), (y1_min, y1_max) = self.segments[i]
+        (x2_min, x2_max), (y2_min, y2_max) = self.segments[j]
+        ox_min = max(x1_min, x2_min)
+        ox_max = min(x1_max, x2_max)
+        oy_min = max(y1_min, y2_min)
+        oy_max = min(y1_max, y2_max)
+        return ((ox_min + ox_max) / 2, (oy_min + oy_max) / 2)
+
     def _build_graph(self) -> None:
+        """构建以交叉口为节点的图，同路段上所有节点用欧氏距离连边"""
         n = len(self.segments)
-        self.adj = [[] for _ in range(n)]
+
+        # 第一遍：为每对重叠路段创建交叉口节点
         for i in range(n):
             for j in range(i + 1, n):
                 if self._rectangles_overlap(i, j):
-                    d = self._distance(self._segment_center(i), self._segment_center(j))
-                    self.adj[i].append((j, d))
-                    self.adj[j].append((i, d))
+                    cp = self._connection_point(i, j)
+                    node_idx = len(self.nodes)
+                    self.nodes.append(cp)
+                    self.pair_to_node[(i, j)] = node_idx
+                    self.pair_to_node[(j, i)] = node_idx
+                    self.seg_to_nodes[i].append(node_idx)
+                    self.seg_to_nodes[j].append(node_idx)
+
+        # 初始化邻接表
+        num_nodes = len(self.nodes)
+        self.adj = [[] for _ in range(num_nodes)]
+
+        # 第二遍：同路段上的所有节点两两连边（沿路行走）
+        for seg_idx, node_list in self.seg_to_nodes.items():
+            for a in range(len(node_list)):
+                for b in range(a + 1, len(node_list)):
+                    u = node_list[a]
+                    v = node_list[b]
+                    d = self._distance(self.nodes[u], self.nodes[v])
+                    self.adj[u].append((v, d))
+                    self.adj[v].append((u, d))
 
     def snap_to_road(self, position: Tuple[float, float]) -> Tuple[Tuple[float, float], int]:
         """
@@ -91,91 +132,86 @@ class RoadNetwork:
 
     def find_path(self, start_pos: Tuple[float, float],
                   end_pos: Tuple[float, float]) -> List[Tuple[float, float]]:
-        """
-        规划道路网上从起点到终点的最短路径
+        """规划道路网上从起点到终点的最短路径
 
-        返回：
-        路径点列表 [start_snapped, ...segment_centers..., end_actual]
+        用交叉口节点图 + 虚拟起/终节点做Dijkstra，路径点落在交叉口上。
         """
         start_point, start_seg = self.snap_to_road(start_pos)
         end_point, end_seg = self.snap_to_road(end_pos)
 
         if start_seg == end_seg:
+            return [start_point, end_point, end_pos]
+
+        start_nodes = self.seg_to_nodes.get(start_seg, [])
+        end_nodes = self.seg_to_nodes.get(end_seg, [])
+
+        # 起/终路段无交叉口 → 直接走
+        if not start_nodes or not end_nodes:
             return [start_point, end_pos]
 
+        base = len(self.nodes)
+        virtual_start = base
+        virtual_end = base + 1
+        total = base + 2
+
+        # 构建扩展邻接表（含虚拟节点）
+        ext_adj = self.adj + [[], []]
+        for ni in start_nodes:
+            d = self._distance(start_point, self.nodes[ni])
+            ext_adj[virtual_start].append((ni, d))
+            ext_adj[ni].append((virtual_start, d))
+        for ni in end_nodes:
+            d = self._distance(end_point, self.nodes[ni])
+            ext_adj[virtual_end].append((ni, d))
+            ext_adj[ni].append((virtual_end, d))
+
         # Dijkstra
-        n = len(self.segments)
-        dist = [float('inf')] * n
-        prev = [-1] * n
-        dist[start_seg] = 0
-        pq = [(0.0, start_seg)]
+        dist = [float('inf')] * total
+        prev = [-1] * total
+        dist[virtual_start] = 0
+        pq = [(0.0, virtual_start)]
 
         while pq:
             d, u = heapq.heappop(pq)
             if d > dist[u]:
                 continue
-            if u == end_seg:
+            if u == virtual_end:
                 break
-            for v, w in self.adj[u]:
+            for v, w in ext_adj[u]:
                 nd = d + w
                 if nd < dist[v]:
                     dist[v] = nd
                     prev[v] = u
                     heapq.heappush(pq, (nd, v))
 
-        # 无路径时回退到直线
-        if dist[end_seg] == float('inf'):
+        if dist[virtual_end] == float('inf'):
             return [start_point, end_pos]
 
-        # 重建路径
-        seg_path = []
-        u = end_seg
+        # 重建路径（跳过虚拟节点，保留交叉口节点）
+        node_path = []
+        u = virtual_end
         while u != -1:
-            seg_path.append(u)
+            node_path.append(u)
             u = prev[u]
-        seg_path.reverse()
+        node_path.reverse()
 
         waypoints = [start_point]
-        for idx in seg_path:
-            waypoints.append(self._segment_center(idx))
+        for ni in node_path:
+            if ni == virtual_start or ni == virtual_end:
+                continue
+            waypoints.append(self.nodes[ni])
+        waypoints.append(end_point)
         waypoints.append(end_pos)
         return waypoints
 
     def path_length(self, start_pos: Tuple[float, float],
                     end_pos: Tuple[float, float]) -> float:
-        """计算道路网路径总长度"""
-        start_point, start_seg = self.snap_to_road(start_pos)
-        end_point, end_seg = self.snap_to_road(end_pos)
-
-        if start_seg == end_seg:
-            return (self._distance(start_pos, start_point) +
-                    self._distance(start_point, end_point) +
-                    self._distance(end_point, end_pos))
-
-        n = len(self.segments)
-        dist = [float('inf')] * n
-        dist[start_seg] = 0
-        pq = [(0.0, start_seg)]
-
-        while pq:
-            d, u = heapq.heappop(pq)
-            if d > dist[u]:
-                continue
-            if u == end_seg:
-                break
-            for v, w in self.adj[u]:
-                nd = d + w
-                if nd < dist[v]:
-                    dist[v] = nd
-                    heapq.heappush(pq, (nd, v))
-
-        road_dist = dist[end_seg]
-        if road_dist == float('inf'):
-            return self._distance(start_pos, end_pos)
-
-        return (self._distance(start_pos, start_point) +
-                road_dist +
-                self._distance(end_point, end_pos))
+        """计算道路网路径总长度（累加find_path的各段）"""
+        path = self.find_path(start_pos, end_pos)
+        total = 0.0
+        for i in range(len(path) - 1):
+            total += self._distance(path[i], path[i + 1])
+        return total
 
     def get_segment_rects(self) -> List[Tuple[Tuple[float, float], Tuple[float, float]]]:
         """返回所有道路段矩形（供可视化使用）"""
