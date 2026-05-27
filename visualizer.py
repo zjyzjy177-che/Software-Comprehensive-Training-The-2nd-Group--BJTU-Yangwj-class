@@ -321,15 +321,8 @@ class CanteenVisualizer:
         matplotlib.rcParams['xtick.labelsize'] = 8
         matplotlib.rcParams['ytick.labelsize'] = 8
 
-        system = platform.system()
-        if system == 'Darwin':
-            _fonts = ['Microsoft YaHei', 'PingFang SC', 'Heiti SC', 'sans-serif']
-        elif system == 'Windows':
-            _fonts = ['Microsoft YaHei', 'SimHei', 'sans-serif']
-        else:
-            _fonts = ['WenQuanYi Micro Hei', 'Noto Sans CJK SC', 'sans-serif']
-        matplotlib.rcParams['font.sans-serif'] = _fonts
-        matplotlib.rcParams['font.family'] = 'sans-serif'
+        # 字体：英文 Times New Roman（加粗），中文微软雅黑
+        matplotlib.rcParams['font.family'] = ['Times New Roman', 'Microsoft YaHei', 'SimHei', 'serif', 'sans-serif']
         matplotlib.rcParams['font.weight'] = 'bold'
         matplotlib.rcParams['axes.unicode_minus'] = False
         # 数字时钟用 Courier New
