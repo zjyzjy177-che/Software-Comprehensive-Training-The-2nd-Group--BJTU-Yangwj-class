@@ -66,7 +66,7 @@ class Student:
 
     def __init__(self, student_id: int, position: Tuple[float, float],
                  destination: Tuple[float, float], speed: float = None,
-                 eating_time: int = None):
+                 eating_time: int = None, origin_building: str = None):
         """
         初始化学生对象
 
@@ -92,6 +92,9 @@ class Student:
         # 道路网络路径点（由 RoadNetwork.find_path 生成）
         self.waypoints = []  # 路径点列表 [(x,y), ...]
         self.current_waypoint_idx = 0  # 当前前往的路径点索引
+
+        # 出发建筑（用于按来源着色）
+        self.origin_building = origin_building
 
         # 目标食堂和窗口
         self.target_canteen_id = None  # 目标食堂ID，在choose_canteen方法中设置

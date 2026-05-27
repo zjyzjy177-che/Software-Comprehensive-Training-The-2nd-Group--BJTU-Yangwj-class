@@ -107,6 +107,9 @@ def run_staggered_simulation(gap_minutes: int, base_students: int = 200,
     waves = _get_spawn_waves(base_students, gap_minutes, total_ticks)
     pending_spawns = {}  # tick -> [positions]
     spawn_positions = cfg.get('spawn_positions', [(0, 0)])
+    # 坐标→建筑名反向映射
+    building_coords = cfg.get('building_coords', {})
+    coord_to_name = {coord: name for name, coord in building_coords.items()}
     canteens = engine.canteens
 
     for tick_offset, count in waves:
@@ -135,7 +138,8 @@ def run_staggered_simulation(gap_minutes: int, base_students: int = 200,
                     speed = random.uniform(*cfg.get('student_speed_range', (3.0, 15.0)))
                     eating_t = random.randint(*cfg.get('eating_time_range', (20, 60)))
                     s = Student(student_id=student_id_counter, position=pos,
-                               destination=target.position, speed=speed, eating_time=eating_t)
+                               destination=target.position, speed=speed, eating_time=eating_t,
+                               origin_building=coord_to_name.get(pos, None))
                     s.target_canteen_id = target.canteen_id
                     engine.students.append(s)
                     engine.active_students.append(s)

@@ -301,20 +301,21 @@ class SimulationEngine:
 
         # 优先从宿舍生成
         building_coords = self.config.get('building_coords', {})
-        dorm_positions = []
+        dorm_items = []  # (position, name)
         for name, coord in building_coords.items():
             if self._classify_building(name) == 'dorm':
-                dorm_positions.append(coord)
+                dorm_items.append((coord, name))
 
         for i in range(initial_count):
+            origin = None
             if start_positions and i < len(start_positions):
                 position = start_positions[i]
-            elif dorm_positions:
-                position = random.choice(dorm_positions)
+            elif dorm_items:
+                position, origin = random.choice(dorm_items)
             else:
-                position = self._get_spawn_position()
+                position, origin = self._get_spawn_position()
 
-            self._spawn_single_student(position=position)
+            self._spawn_single_student(position=position, origin_building=origin)
 
         print(f"创建初始学生：{len(self.students)}名（清晨宿舍出发，共预配置{student_count}人规模）")
 
@@ -330,30 +331,27 @@ class SimulationEngine:
         y = random.uniform(y_min, y_max)
         return (x, y)
 
-    def _get_spawn_position(self) -> Tuple[float, float]:
+    def _get_spawn_position(self) -> Tuple[Tuple[float, float], str]:
         """
-        获取学生生成位置（按建筑人数权重加权随机选取）
-
-        使用 building_weights 作为权重，人数多的建筑（如嘉园4000人）
-        比人数少的建筑（如校史馆100人）更可能生成学生。
+        获取学生生成位置和出发建筑名（按建筑人数权重加权随机选取）
+        返回: ((x, y), building_name)
         """
         building_coords = self.config.get('building_coords', {})
         building_weights = self.config.get('building_weights', {})
 
         if building_coords and building_weights:
-            # 筛选有坐标且有正权重的建筑
             valid_names = [n for n in building_coords
                           if n in building_weights and building_weights[n] > 0]
             if valid_names:
                 w = [building_weights[n] for n in valid_names]
                 chosen = random.choices(valid_names, weights=w, k=1)[0]
-                return building_coords[chosen]
+                return building_coords[chosen], chosen
 
         # 回退：uniform 随机
         spawn_positions = self.config.get('spawn_positions')
         if spawn_positions:
-            return tuple(random.choice(spawn_positions))
-        return self._generate_random_position()
+            return tuple(random.choice(spawn_positions)), None
+        return self._generate_random_position(), None
 
     def _random_student_speed(self) -> float:
         """从 config 的 student_speed_range 中随机取速度"""
@@ -494,14 +492,15 @@ class SimulationEngine:
     # 学生生成辅助方法
     # ============================================================
 
-    def _spawn_single_student(self, position: Tuple[float, float] = None) -> None:
+    def _spawn_single_student(self, position: Tuple[float, float] = None,
+                               origin_building: str = None) -> None:
         """生成单个学生，上限为 student_count × 5 保证课表波次不断"""
         max_students = self.config.get('student_count', 100) * 5
         if len(self.students) >= max_students:
             return
 
         if position is None:
-            position = self._get_spawn_position()
+            position, origin_building = self._get_spawn_position()
 
         # 吸附到最近道路
         snapped_pos = position
@@ -528,7 +527,8 @@ class SimulationEngine:
                 position=snapped_pos,
                 destination=target_door,
                 speed=speed,
-                eating_time=eating_time
+                eating_time=eating_time,
+                origin_building=origin_building
             )
             student.target_canteen_id = target_canteen.canteen_id
 
@@ -591,7 +591,7 @@ class SimulationEngine:
 
             # 60% 从该教学楼出来
             for _ in range(num_from_building):
-                self._spawn_single_student(position=building_pos)
+                self._spawn_single_student(position=building_pos, origin_building=building_name)
 
             # 30% 从宿舍出来（按权重加权）
             if dorm_items:
@@ -599,7 +599,8 @@ class SimulationEngine:
                 d_weights = [it[2] for it in dorm_items]
                 for _ in range(num_from_dorms):
                     chosen = random.choices(d_names, weights=d_weights, k=1)[0]
-                    self._spawn_single_student(position=building_coords[chosen])
+                    self._spawn_single_student(position=building_coords[chosen],
+                                               origin_building=chosen)
             else:
                 for _ in range(num_from_dorms):
                     self._spawn_single_student()
@@ -610,7 +611,8 @@ class SimulationEngine:
                 ot_weights = [it[2] for it in other_teaching_items]
                 for _ in range(num_from_other):
                     chosen = random.choices(ot_names, weights=ot_weights, k=1)[0]
-                    self._spawn_single_student(position=building_coords[chosen])
+                    self._spawn_single_student(position=building_coords[chosen],
+                                               origin_building=chosen)
             else:
                 for _ in range(num_from_other):
                     self._spawn_single_student()
@@ -625,7 +627,8 @@ class SimulationEngine:
             all_weights = [it[2] for it in all_items]
             for _ in range(burst_size):
                 chosen = random.choices(all_names, weights=all_weights, k=1)[0]
-                self._spawn_single_student(position=building_coords[chosen])
+                self._spawn_single_student(position=building_coords[chosen],
+                                           origin_building=chosen)
 
     # ============================================================
     # 主要生成逻辑

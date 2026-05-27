@@ -239,6 +239,16 @@ class CanteenVisualizer:
         self._bar_patches = []      # 条带 patches
         self._bar_texts = []        # 条带文字
 
+        # 出发地着色
+        self.color_by_origin = False  # False=按状态着色 True=按出发地着色
+        self._origin_palette = [
+            '#E6194B', '#3CB44B', '#FFE119', '#4363D8', '#F58231',
+            '#911EB4', '#42D4F4', '#F032E6', '#BFEF45', '#FABED4',
+            '#469990', '#DCBEFF', '#9A6324', '#FFFAC8', '#800000',
+            '#AAFFC3', '#808000', '#FFD8B1', '#000075', '#A9A9A9',
+        ]
+        self._origin_color_map = {}  # building_name → color
+
         # 数据历史（用于统计图）
         self.tick_history = []      # 周期历史
         self.queue_history = []     # 排队人数历史
@@ -439,35 +449,53 @@ class CanteenVisualizer:
         self._pos_pie = self.ax_pie.get_position()
         self._pos_info = ax_info.get_position()
 
+    def _get_origin_color(self, building_name: str) -> str:
+        """为建筑名分配固定颜色（首次遇到时从调色板取）"""
+        if not building_name:
+            building_name = "未知"
+        if building_name not in self._origin_color_map:
+            idx = len(self._origin_color_map) % len(self._origin_palette)
+            self._origin_color_map[building_name] = self._origin_palette[idx]
+        return self._origin_color_map[building_name]
+
     def _add_legend(self) -> None:
         """
         添加图例到地图子图
-
-        显示学生状态颜色对应关系。
-        使用自定义图例，避免与图形元素冲突。
+        按状态着色：显示状态颜色；按出发地着色：显示建筑→颜色映射。
         """
-        # 创建图例元素
-        legend_elements = [
-            plt.Line2D([0], [0], marker='o', color='w',
-                      markerfacecolor=self.colors['student_walking'],
-                      markersize=8, label=_viz_t("legend_walking", self.lang)),
-            plt.Line2D([0], [0], marker='o', color='w',
-                      markerfacecolor=self.colors['student_queuing'],
-                      markersize=8, label=_viz_t("legend_queuing", self.lang)),
-            plt.Line2D([0], [0], marker='o', color='w',
-                      markerfacecolor=self.colors['student_eating'],
-                      markersize=8, label=_viz_t("legend_eating", self.lang)),
-            plt.Line2D([0], [0], marker='o', color='w',
-                      markerfacecolor=self.colors['student_leaving'],
-                      markersize=8, label=_viz_t("legend_leaving", self.lang)),
-            plt.Line2D([0], [0], marker='^', color='w',
-                      markerfacecolor='#FFD700', markeredgecolor='#CC9900',
-                      markersize=10, label=_viz_t("legend_canteen", self.lang)),
-        ]
-
-        # 添加图例
-        self.ax_map.legend(handles=legend_elements, loc='upper right',
-                          fontsize=8, framealpha=0.9)
+        if self.color_by_origin and self._origin_color_map:
+            # 出发地着色图例
+            origin_elements = [
+                plt.Line2D([0], [0], marker='o', color='w',
+                          markerfacecolor=color, markersize=8, label=name)
+                for name, color in self._origin_color_map.items()]
+            origin_elements.append(
+                plt.Line2D([0], [0], marker='^', color='w',
+                          markerfacecolor='#FFD700', markeredgecolor='#CC9900',
+                          markersize=10, label=_viz_t("legend_canteen", self.lang)))
+            self.ax_map.legend(handles=origin_elements, loc='upper right',
+                             fontsize=7, framealpha=0.9, title="出发地",
+                             title_fontsize=8)
+        else:
+            legend_elements = [
+                plt.Line2D([0], [0], marker='o', color='w',
+                          markerfacecolor=self.colors['student_walking'],
+                          markersize=8, label=_viz_t("legend_walking", self.lang)),
+                plt.Line2D([0], [0], marker='o', color='w',
+                          markerfacecolor=self.colors['student_queuing'],
+                          markersize=8, label=_viz_t("legend_queuing", self.lang)),
+                plt.Line2D([0], [0], marker='o', color='w',
+                          markerfacecolor=self.colors['student_eating'],
+                          markersize=8, label=_viz_t("legend_eating", self.lang)),
+                plt.Line2D([0], [0], marker='o', color='w',
+                          markerfacecolor=self.colors['student_leaving'],
+                          markersize=8, label=_viz_t("legend_leaving", self.lang)),
+                plt.Line2D([0], [0], marker='^', color='w',
+                          markerfacecolor='#FFD700', markeredgecolor='#CC9900',
+                          markersize=10, label=_viz_t("legend_canteen", self.lang)),
+            ]
+            self.ax_map.legend(handles=legend_elements, loc='upper right',
+                             fontsize=8, framealpha=0.9)
 
     def _setup_events(self) -> None:
         """设置交互事件：键盘 + 鼠标缩放/拖动 + 视图切换"""
@@ -513,6 +541,16 @@ class CanteenVisualizer:
             modes = ["合并视图", "纯地图", "纯图表"]
             self._update_info_text(f"视图: {modes[self._view_mode]}")
             self._apply_view_mode()
+
+        elif event.key == 'o':
+            # O键：切换着色模式（状态 / 出发地）
+            self.color_by_origin = not self.color_by_origin
+            if hasattr(self.ax_map, 'legend_') and self.ax_map.legend_:
+                self.ax_map.legend_.remove()
+            self._add_legend()
+            mode = "出发地着色" if self.color_by_origin else "状态着色"
+            self._update_info_text(f"着色: {mode}")
+            self.fig.canvas.draw_idle()
 
     # ---------- 鼠标缩放/拖动 ----------
     def _on_scroll(self, event):
@@ -912,69 +950,78 @@ class CanteenVisualizer:
                 self.text_labels.append(queue_text)
 
     def _draw_students(self, students: List[Student]) -> None:
-        """
-        绘制学生位置和状态
+        """绘制学生：按状态着色（蓝/红/绿/紫）或按出发建筑着色"""
+        import random as _rnd
 
-        不同状态使用不同颜色：
-        - 行走：蓝色
-        - 排队：红色
-        - 用餐：绿色
-        - 离开：紫色
+        if self.color_by_origin:
+            # === 按出发建筑分组着色 ===
+            students_by_origin = {}
+            for s in students:
+                key = s.origin_building or "未知"
+                students_by_origin.setdefault(key, []).append(s)
 
-        性能优化：使用散点图批处理绘制，而不是逐个绘制点。
-        """
-        # 按状态分组学生
-        students_by_state = {
-            StudentState.WALKING: [],
-            StudentState.QUEUING: [],
-            StudentState.EATING: [],
-            StudentState.LEAVING: [],
-        }
+            for building_name, student_list in students_by_origin.items():
+                color = self._get_origin_color(building_name)
+                x_coords = []
+                y_coords = []
+                for s in student_list:
+                    px, py = s.position
+                    if s.state in (StudentState.QUEUING, StudentState.EATING):
+                        px += _rnd.uniform(-14, 14)
+                        py += _rnd.uniform(-14, 14)
+                    x_coords.append(px)
+                    y_coords.append(py)
+                points = self.ax_map.scatter(x_coords, y_coords,
+                                            s=self.point_size**2,
+                                            c=color, alpha=0.8,
+                                            edgecolors='black', linewidths=0.5)
+                self.student_points.append(points)
+        else:
+            # === 按状态分组着色（原有逻辑） ===
+            students_by_state = {
+                StudentState.WALKING: [],
+                StudentState.QUEUING: [],
+                StudentState.EATING: [],
+                StudentState.LEAVING: [],
+            }
+            for student in students:
+                if student.state in students_by_state:
+                    students_by_state[student.state].append(student)
 
-        for student in students:
-            if student.state in students_by_state:
-                students_by_state[student.state].append(student)
+            for state, student_list in students_by_state.items():
+                if not student_list:
+                    continue
+                if state == StudentState.WALKING:
+                    color = self.colors['student_walking']
+                elif state == StudentState.QUEUING:
+                    color = self.colors['student_queuing']
+                elif state == StudentState.EATING:
+                    color = self.colors['student_eating']
+                elif state == StudentState.LEAVING:
+                    color = self.colors['student_leaving']
+                else:
+                    color = 'gray'
 
-        # 按状态批处理绘制
-        for state, student_list in students_by_state.items():
-            if not student_list:
-                continue
+                x_coords = []
+                y_coords = []
+                for s in student_list:
+                    px, py = s.position
+                    if s.state in (StudentState.QUEUING, StudentState.EATING):
+                        px += _rnd.uniform(-14, 14)
+                        py += _rnd.uniform(-14, 14)
+                    x_coords.append(px)
+                    y_coords.append(py)
 
-            # 获取颜色
-            if state == StudentState.WALKING:
-                color = self.colors['student_walking']
-            elif state == StudentState.QUEUING:
-                color = self.colors['student_queuing']
-            elif state == StudentState.EATING:
-                color = self.colors['student_eating']
-            elif state == StudentState.LEAVING:
-                color = self.colors['student_leaving']
-            else:
-                color = 'gray'
+                points = self.ax_map.scatter(x_coords, y_coords,
+                                            s=self.point_size**2,
+                                            c=color, alpha=0.8,
+                                            edgecolors='black', linewidths=0.5)
+                self.student_points.append(points)
 
-            # 提取坐标，排队/用餐加随机偏移避免扎堆重叠
-            import random as _rnd
-            x_coords = []
-            y_coords = []
-            for s in student_list:
-                px, py = s.position
-                if s.state in (StudentState.QUEUING, StudentState.EATING):
-                    px += _rnd.uniform(-14, 14)
-                    py += _rnd.uniform(-14, 14)
-                x_coords.append(px)
-                y_coords.append(py)
-
-            # 批量绘制点
-            points = self.ax_map.scatter(x_coords, y_coords,
-                                        s=self.point_size**2,
-                                        c=color, alpha=0.8,
-                                        edgecolors='black', linewidths=0.5)
-            self.student_points.append(points)
-
-        # 性能提示（当学生数量多时）
         if len(students) > 500:
-            self.ax_map.set_title(f"{_viz_t('map_title', self.lang)} ({len(students)} {_viz_t('info_students', self.lang)} - {_viz_t('perf_mode', self.lang)})",
-                                 fontsize=12, fontweight='bold')
+            self.ax_map.set_title(
+                f"{_viz_t('map_title', self.lang)} ({len(students)} {_viz_t('info_students', self.lang)} - {_viz_t('perf_mode', self.lang)})",
+                fontsize=12, fontweight='bold')
 
     def _update_statistics(self, tick: int, students: List[Student], canteens: List[Canteen]) -> None:
         """
@@ -1112,10 +1159,23 @@ class CanteenVisualizer:
             f"{_viz_t('info_canteens', lang)}:{canteen_count} | {_viz_t('info_queue', lang)}:{total_queue} | {_viz_t('info_speed', lang)}:{self.animation_speed}ms",
         ]
 
-        # 更新左侧信息面板
-        self.info_text.set_text("\n".join(info_lines))
+        # 追加：每个食堂的学生来源建筑分布
+        if self.color_by_origin:
+            info_lines.append("── 各食堂来源建譹 ──")
+            for canteen in canteens:
+                # 统计在该食堂排队/用餐的学生来源
+                origin_counts = {}
+                for s in students:
+                    if s.target_canteen_id == canteen.canteen_id and \
+                       s.state in (StudentState.QUEUING, StudentState.EATING):
+                        key = s.origin_building or "未知"
+                        origin_counts[key] = origin_counts.get(key, 0) + 1
+                if origin_counts:
+                    sorted_items = sorted(origin_counts.items(), key=lambda x: -x[1])
+                    parts = [f"{bld}:{cnt}人" for bld, cnt in sorted_items[:6]]
+                    info_lines.append(f" {canteen.name}: {' '.join(parts)}")
 
-        # 绘制食堂排队横条
+        self.info_text.set_text("\n".join(info_lines))
         self._draw_canteen_bars(canteens, lang)
 
     def start_animation(self, update_func, interval: int = 50) -> None:
