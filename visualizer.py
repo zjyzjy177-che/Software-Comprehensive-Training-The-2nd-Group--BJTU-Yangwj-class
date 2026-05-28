@@ -384,7 +384,7 @@ class CanteenVisualizer:
             if os.path.exists(bg_path):
                 self._bg_img = mpimg.imread(bg_path)
                 self._bg_ax = self.fig.add_axes([0, 0, 1, 1], zorder=-1000)
-                self._bg_ax.imshow(self._bg_img, aspect='auto', alpha=0.15)
+                self._bg_ax.imshow(self._bg_img, aspect='auto', alpha=0.35)
                 self._bg_ax.axis('off')
         except Exception:
             self._bg_ax = None
@@ -714,8 +714,8 @@ class CanteenVisualizer:
 
         max_show = 5
         bar_h = 0.04
-        start_y = 0.32
-        gap = 0.04
+        start_y = 0.36
+        gap = 0.02
 
         ax.text(0.02, start_y + 0.02, _viz_t("canteen_header", lang),
                 transform=ax.transAxes, fontsize=10, fontweight='bold',
@@ -762,6 +762,9 @@ class CanteenVisualizer:
                     if s.target_canteen_id == canteen.canteen_id and \
                        s.state in (StudentState.QUEUING, StudentState.EATING):
                         key = s.origin_building or "?"
+                        # 排除食堂自身（避免"四食堂→四食堂"等荒谬显示）
+                        if key == canteen.name or key in canteen.name or canteen.name in key:
+                            continue
                         origin_counts[key] = origin_counts.get(key, 0) + 1
                 if origin_counts:
                     sorted_items = sorted(origin_counts.items(), key=lambda x: -x[1])[:3]
