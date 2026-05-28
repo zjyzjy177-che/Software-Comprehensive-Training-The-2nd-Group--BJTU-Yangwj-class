@@ -322,7 +322,9 @@ class CanteenVisualizer:
         matplotlib.rcParams['ytick.labelsize'] = 8
 
         # 字体：英文 Times New Roman（加粗），中文微软雅黑
-        matplotlib.rcParams['font.family'] = ['Times New Roman', 'Microsoft YaHei', 'SimHei', 'serif', 'sans-serif']
+        matplotlib.rcParams['font.family'] = 'sans-serif'
+        matplotlib.rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei', 'PingFang SC', 'Heiti SC',
+                                                    'WenQuanYi Micro Hei', 'sans-serif']
         matplotlib.rcParams['font.weight'] = 'bold'
         matplotlib.rcParams['axes.unicode_minus'] = False
         # 数字时钟用 Courier New
