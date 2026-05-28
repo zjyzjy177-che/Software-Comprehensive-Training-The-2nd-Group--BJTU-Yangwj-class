@@ -347,7 +347,16 @@ class CanteenVisualizer:
         self.fig = plt.figure(figsize=(14, 8), facecolor=self.colors['background'])
         self.fig.suptitle(_viz_t("window_title", self.lang), fontsize=16, fontweight='bold', color=self.colors['text'])
 
-        # 背景底图先跳过（等 ax_map 创建后在其上绘制，跟随缩放）
+        # 背景底图（淡化为水印，覆盖全图）
+        try:
+            bg_path = os.path.join(os.path.dirname(__file__), 'assets', 'SHIJIZHONG_BJTU.jpg')
+            if os.path.exists(bg_path):
+                bg_img = plt.imread(bg_path)
+                bg_ax = self.fig.add_axes([0, 0, 1, 1], zorder=-100)
+                bg_ax.imshow(bg_img, aspect='auto', alpha=0.22)
+                bg_ax.axis('off')
+        except Exception:
+            pass
 
         # 创建网格布局：2×2 经典布局
         gs = self.fig.add_gridspec(2, 2, width_ratios=[7, 3], height_ratios=[7, 3],
@@ -376,17 +385,6 @@ class CanteenVisualizer:
                 print(f"未找到底图图片: {img_path}")
         except Exception as e:
             print(f"底图加载失败: {e}")
-
-        # 加载水墨风校园背景（SHIJIZHONG_BJTU.jpg）到 ax_map 上，跟随缩放
-        try:
-            import matplotlib.image as mpimg
-            bg_path = os.path.join(os.path.dirname(__file__), 'assets', 'SHIJIZHONG_BJTU.jpg')
-            if os.path.exists(bg_path):
-                bg_img = mpimg.imread(bg_path)
-                self.ax_map.imshow(bg_img, extent=[self.x_min, self.x_max, self.y_min, self.y_max],
-                                  aspect='auto', alpha=0.22, zorder=-100)
-        except Exception:
-            pass
 
         # 设置等比例，确保地图不变形
         self.ax_map.set_aspect('equal', adjustable='box')
@@ -472,7 +470,7 @@ class CanteenVisualizer:
                           markerfacecolor='#FFD700', markeredgecolor='#CC9900',
                           markersize=9, label=_viz_t("legend_canteen", self.lang)))
             self.ax_map.legend(handles=origin_elements, loc='upper right',
-                             fontsize=6, framealpha=0.9, title="出发地",
+                             fontsize=6, framealpha=0.35, title="出发地",
                              title_fontsize=7, ncol=2 if len(items) > 6 else 1)
         else:
             legend_elements = [
@@ -493,7 +491,7 @@ class CanteenVisualizer:
                           markersize=10, label=_viz_t("legend_canteen", self.lang)),
             ]
             self.ax_map.legend(handles=legend_elements, loc='upper right',
-                             fontsize=8, framealpha=0.9)
+                             fontsize=8, framealpha=0.35)
 
     def _setup_events(self) -> None:
         """设置交互事件：键盘 + 鼠标缩放/拖动 + 视图切换"""
@@ -695,9 +693,9 @@ class CanteenVisualizer:
         self._bar_texts = []
 
         max_show = 5
-        bar_h = 0.045
-        start_y = 0.55
-        gap = 0.045
+        bar_h = 0.04
+        start_y = 0.42
+        gap = 0.04
 
         ax.text(0.02, start_y + 0.02, _viz_t("canteen_header", lang),
                 transform=ax.transAxes, fontsize=10, fontweight='bold',
