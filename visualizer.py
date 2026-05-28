@@ -345,16 +345,7 @@ class CanteenVisualizer:
         self.fig = plt.figure(figsize=(14, 8), facecolor=self.colors['background'])
         self.fig.suptitle(_viz_t("window_title", self.lang), fontsize=16, fontweight='bold', color=self.colors['text'])
 
-        # 背景底图（淡化为水印）
-        try:
-            bg_path = os.path.join(os.path.dirname(__file__), 'assets', 'SHIJIZHONG_BJTU.jpg')
-            if os.path.exists(bg_path):
-                bg_img = plt.imread(bg_path)
-                bg_ax = self.fig.add_axes([0, 0, 1, 1], zorder=-100)
-                bg_ax.imshow(bg_img, aspect='auto', alpha=0.22)
-                bg_ax.axis('off')
-        except Exception:
-            pass
+        # 背景底图先跳过（等 ax_map 创建后在其上绘制，跟随缩放）
 
         # 创建网格布局：2×2 经典布局
         gs = self.fig.add_gridspec(2, 2, width_ratios=[7, 3], height_ratios=[7, 3],
@@ -383,6 +374,17 @@ class CanteenVisualizer:
                 print(f"未找到底图图片: {img_path}")
         except Exception as e:
             print(f"底图加载失败: {e}")
+
+        # 加载水墨风校园背景（SHIJIZHONG_BJTU.jpg）到 ax_map 上，跟随缩放
+        try:
+            import matplotlib.image as mpimg
+            bg_path = os.path.join(os.path.dirname(__file__), 'assets', 'SHIJIZHONG_BJTU.jpg')
+            if os.path.exists(bg_path):
+                bg_img = mpimg.imread(bg_path)
+                self.ax_map.imshow(bg_img, extent=[self.x_min, self.x_max, self.y_min, self.y_max],
+                                  aspect='auto', alpha=0.22, zorder=-100)
+        except Exception:
+            pass
 
         # 设置等比例，确保地图不变形
         self.ax_map.set_aspect('equal', adjustable='box')
@@ -457,18 +459,19 @@ class CanteenVisualizer:
         按状态着色：显示状态颜色；按出发地着色：显示建筑→颜色映射。
         """
         if self.color_by_origin and self._origin_color_map:
-            # 出发地着色图例
+            # 出发地着色图例，限制 12 条 + 双列防溢出
+            items = list(self._origin_color_map.items())[:12]
             origin_elements = [
                 plt.Line2D([0], [0], marker='o', color='w',
-                          markerfacecolor=color, markersize=8, label=name)
-                for name, color in self._origin_color_map.items()]
+                          markerfacecolor=color, markersize=7, label=name)
+                for name, color in items]
             origin_elements.append(
                 plt.Line2D([0], [0], marker='^', color='w',
                           markerfacecolor='#FFD700', markeredgecolor='#CC9900',
-                          markersize=10, label=_viz_t("legend_canteen", self.lang)))
+                          markersize=9, label=_viz_t("legend_canteen", self.lang)))
             self.ax_map.legend(handles=origin_elements, loc='upper right',
-                             fontsize=7, framealpha=0.9, title="出发地",
-                             title_fontsize=8)
+                             fontsize=6, framealpha=0.9, title="出发地",
+                             title_fontsize=7, ncol=2 if len(items) > 6 else 1)
         else:
             legend_elements = [
                 plt.Line2D([0], [0], marker='o', color='w',
@@ -1156,7 +1159,6 @@ class CanteenVisualizer:
         if self.color_by_origin:
             info_lines.append("── 各食堂来源建譹 ──")
             for canteen in canteens:
-                # 统计在该食堂排队/用餐的学生来源
                 origin_counts = {}
                 for s in students:
                     if s.target_canteen_id == canteen.canteen_id and \
@@ -1165,9 +1167,13 @@ class CanteenVisualizer:
                         origin_counts[key] = origin_counts.get(key, 0) + 1
                 if origin_counts:
                     sorted_items = sorted(origin_counts.items(), key=lambda x: -x[1])
-                    parts = [f"{bld}:{cnt}人" for bld, cnt in sorted_items[:6]]
+                    parts = [f"{bld}:{cnt}" for bld, cnt in sorted_items[:4]]
                     info_lines.append(f" {canteen.name}: {' '.join(parts)}")
 
+        # 动态字号：行数超过 20 时缩小字体避免溢出
+        n_lines = len(info_lines)
+        dynamic_size = 7.5 if n_lines <= 20 else (6.5 if n_lines <= 30 else 5.5)
+        self.info_text.set_fontsize(dynamic_size)
         self.info_text.set_text("\n".join(info_lines))
         self._draw_canteen_bars(canteens, lang)
 
