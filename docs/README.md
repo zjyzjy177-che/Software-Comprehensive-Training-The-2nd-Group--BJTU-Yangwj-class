@@ -102,9 +102,11 @@ bjtu_canteen_simulation/
 ├── config.py                # ✅ 配置模块：BJTU地图坐标、仿真参数、JSON导入导出（v1.5）
 ├── strategies.py            # ✅ 策略模块：多食堂选择算法（α距离+β排队+效率因子）（v2.0）
 ├── visualizer.py            # ✅ 可视化模块：Matplotlib动画、三语支持、跨平台字体、TkAgg后端（v2.3.1）
-├── gui.py                   # ✅ GUI模块：Tkinter登录/管理员/参数配置/错峰对比按钮（v2.5）
-├── peak_shift.py            # ✅ 错峰对比模块：建筑分批注入+四图对比分析（v2.0）
-├── campus_bounds.json       # ✅ 校园边界和32个建筑坐标（权威数据源）
+├── gui.py                   # ✅ GUI模块：食堂勾选+开始时间+导出报告+自动保存（v3.0）
+├── peak_shift.py            # ✅ 错峰对比模块（v2.0）
+├── export_report.py         # ✅ 报告导出：Excel/Word/PDF（v1.2）
+├── road_network.py          # ✅ 道路网络：学生沿路行走（组员B）
+├── campus_bounds.json       # ✅ 校园边界和32个建筑坐标
 ├── .gitignore               # Git忽略配置（含gui_users.txt等运行时文件）
 ├── README.md                # 项目文档
 ├── INTEGRATION_REPORT.md    # ✅ 集成联调测试报告模板（v1.0）
@@ -284,20 +286,17 @@ python main.py --config example_config.json
 
 ### ✅ 已完成
 - [x] 核心数据模型（models.py）
-- [x] 仿真引擎（engine.py）：加权建筑出发、错峰支持
-- [x] 主程序入口（main.py）：CLI + 可视化 + GUI接口 + benchmark
-- [x] 测试套件（test_simulation.py）
-- [x] 配置模块（config.py）：BJTU地图坐标、spawn_weights建筑权重、仿真参数（v1.7）
-- [x] 校园边界文件（campus_bounds.json）：32建筑坐标
-- [x] 策略模块（strategies.py）：多食堂选择算法（v2.0）
-- [x] 可视化模块（visualizer.py）：Matplotlib动画、BJT时钟、三视图切换按钮、底图水印、缩放拖动（v3.0）
-- [x] GUI界面（gui.py）：Tkinter登录/管理员/参数配置/错峰对比按钮/ttk主题美化（v2.5）
-- [x] 错峰对比（peak_shift.py）：建筑分批注入，四图对比分析（v2.0）
-- [x] 跨平台兼容：Win/Mac/Linux字体+后端、PyInstaller打包支持
-- [x] 集成测试（test_integration.py）：24项全部通过
-- [x] 单元测试：组长A 25项 + 组员B 34项 + 组员C 15项 = 74项
+- [x] 仿真引擎（engine.py）：加权建筑出发、课表驱动错峰、食堂营业时段、弹幕通知（v1.7）
+- [x] 主程序入口（main.py）：CLI + 可视化 + GUI接口 + benchmark + 通知转发（v2.5）
+- [x] 配置模块（config.py）：建筑权重、课表、营业时间4时段、爆发参数（v1.9）
+- [x] 可视化模块（visualizer.py）：滚轮缩放拖动+四按钮视图切换+BJT钟表+底图水印+弹幕通知+来源着色+版权（v3.3）
+- [x] GUI界面（gui.py）：食堂勾选+开始时间+策略联动滑块+导出报告+自动保存弹窗+注销重置（v3.0）
+- [x] 错峰对比（peak_shift.py）：建筑分批注入，四图对比（v2.0）
+- [x] 导出报告（export_report.py）：Excel/Word/PDF三格式+自定义路径（v1.2）
+- [x] 跨平台：PyInstaller打包(.app/.exe)+应用图标+字体适配
+- [x] 集成测试 24项 + 单元测试 74项 = 98项全部通过
 - [x] 联调测试报告（INTEGRATION_REPORT.md）
-- [x] Git版本控制和文档
+- [x] Git版本控制
 
 ### 🔄 部署阶段（第13-15周 / 6月）
 
@@ -339,6 +338,16 @@ python main.py --config example_config.json
   张建宇 → release/ 打包 + 最终检查 + 提交
 ```
 
+### ✅ 新增完成（2026/05/25 — 部署阶段收尾）
+- [x] 食堂勾选代替数量输入 + 营业时间 07-09/11:30-13:50/17:30-19/21-23
+- [x] 非营业时段新生等待、课表波次（爆发120人 + 倍率2.0）
+- [x] 弹幕通知系统（下课/开餐/打烊，三语，多条堆叠1.5s消失）
+- [x] 策略下拉联动权重滑块（距离α=0.9/排队β=0.9/平衡0.5）
+- [x] 仿真前自动保存弹窗 + 注销重置所有参数
+- [x] 导出报告 Excel/Word/PDF + 自定义路径 + 后缀去重
+- [x] 视图按钮三语 + 来源/状态着色切换 + 版权声明
+- [x] 应用图标（icon.icns + icon.ico）
+- [x] 字体配置微软雅黑 + 条带间距优化 + 文本框防重叠
 ### ✅ 新增完成（2026/05/22 — 部署阶段准备）
 - [x] visualizer.py v3.0：交互式图形界面全面升级
   - 地图滚轮缩放（0.3x~5x）+ 左键拖动平移 + R 键重置
@@ -426,5 +435,5 @@ python main.py --config example_config.json
 
 ---
 
-**项目状态**：五大模块全部完成，98 项测试通过，PyInstaller 打包验证通过。**当前阶段：第13-15周部署阶段——Schedule 接入/Schedule/三视图+区域着色/Excel导出 + 三份部署文档 + 最终打包。**
+**项目状态**：全部功能完成，98 项测试通过，PyInstaller 打包验证通过（macOS .app + Windows .exe）。弹幕通知、食堂营业时段、导出报告、自动保存均已实现。**当前阶段：部署收尾——部署文档 + 使用手册 + 总结报告。**
 

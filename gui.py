@@ -1876,6 +1876,18 @@ class BJTUSimulationGUI:
         self.login_frame.pack(fill="both", expand=True)
         self.info_user_label.config(text=self.t("current_user_none"))
         self.status_bar.config(text=self.t("not_logged_in"))
+        # 重置所有参数为默认值
+        self.entry_ticks.delete(0, tk.END); self.entry_ticks.insert(0, "600")
+        self.entry_students.delete(0, tk.END); self.entry_students.insert(0, "30")
+        self.entry_spawn.delete(0, tk.END); self.entry_spawn.insert(0, "0.08")
+        self.entry_start_time.delete(0, tk.END); self.entry_start_time.insert(0, "07:00")
+        self.strategy_var.set("balanced")
+        self.alpha_var.set(0.5); self.beta_var.set(0.5)
+        self.alpha_label.config(text="0.5"); self.beta_label.config(text="0.5")
+        self.enable_viz_var.set(False)
+        self.config_path_var.set("")
+        for idx, name in enumerate(["四食堂", "一食堂", "留园", "学活食堂"]):
+            self._canteen_vars[name].set(idx < 2)
         self._clear_login()
 
     # ---------- 配置加载 ----------
@@ -2166,6 +2178,7 @@ class BJTUSimulationGUI:
                 aset = self._auto_save_settings
                 if aset and aset.get("enabled"):
                     self._auto_save(result['engine'], aset)
+                self._auto_save_settings = None  # 跑完重置，下次默认不勾选
             stats = result['statistics']
             self.result_text.insert(tk.END, "=" * 50 + "\n")
             self.result_text.insert(tk.END, f"  {self.t('sim_complete')}\n")

@@ -124,6 +124,8 @@ class SimulationEngine:
         # 食堂选择器（使用strategies.py中的算法）
         self.canteen_selector = self._create_canteen_selector()
 
+        self.notifications = []  # 弹幕通知列表
+
         # 道路网络（所有学生移动必须沿道路）
         road_segments = self.config.get('road_segments', [])
         self.road_network = RoadNetwork(road_segments) if road_segments else None
@@ -641,6 +643,14 @@ class SimulationEngine:
         hour, minute = self._tick_to_sim_time(self.current_tick)
         current_time = f"{hour:02d}:{minute:02d}"
 
+        canteen_was_open = self._is_canteen_open(current_time)
+        prev_h, prev_m = self._tick_to_sim_time(max(0, self.current_tick - 1))
+        was_closed = not self._is_canteen_open(f"{prev_h:02d}:{prev_m:02d}")
+        if canteen_was_open and was_closed:
+            self.notifications.append(("canteen_open", {}))
+        elif not canteen_was_open and not was_closed:
+            self.notifications.append(("canteen_close", {}))
+
         # 食堂全部关闭时不生成新学生（已有学生可继续移动）
         if not self._is_canteen_open(current_time):
             return
@@ -664,6 +674,9 @@ class SimulationEngine:
                 mode = '课间'
             self._spawn_class_end_burst(building_name, burst_size,
                                         len(class_ends), total_scheduled)
+            is_stag = "12:20" in current_time  # 12:20是错峰下课
+            etype = "class_end_stag" if is_stag else "class_end"
+            self.notifications.append((etype, {"bld": building_name}))
             if self.current_tick % 50 == 0:
                 print(f"Tick {self.current_tick} ({current_time}): "
                       f"{building_name}下课({mode})，爆发生成{burst_size}名学生")
@@ -700,13 +713,15 @@ class SimulationEngine:
             # 更新学生状态
             is_active = student.update_state(self.map_boundaries)
 
-            # 检查学生是否需要加入食堂队列（仅尚未分配到窗口的学生）
+            # 检查学生是否需要加入食堂队列（食堂营业中才允许）
             if (student.state == StudentState.QUEUING
                     and student.target_canteen_id is not None
                     and student.target_window_id is None):
-                target_canteen = self._find_canteen_by_id(student.target_canteen_id)
-                if target_canteen:
-                    target_canteen.add_student_to_queue(student)
+                h, m = self._tick_to_sim_time(self.current_tick)
+                if self._is_canteen_open(f"{h:02d}:{m:02d}"):
+                    target_canteen = self._find_canteen_by_id(student.target_canteen_id)
+                    if target_canteen:
+                        target_canteen.add_student_to_queue(student)
 
             # 如果学生已离开，标记为待移除
             if not is_active:

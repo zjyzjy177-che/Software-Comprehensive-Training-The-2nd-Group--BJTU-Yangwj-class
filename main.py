@@ -466,6 +466,12 @@ def run_simulation(config: Dict[str, Any], quiet_mode: bool = False) -> Simulati
                     """每帧动画回调：推进一个 tick 并返回当前状态"""
                     if engine.current_tick < engine.max_ticks:
                         engine.tick()
+                        # 弹幕通知（event_type, kwargs）
+                        if engine.notifications and visualizer:
+                            for item in engine.notifications:
+                                etype, kw = item if isinstance(item, tuple) else (item, {})
+                                visualizer.show_notification(etype, **kw)
+                            engine.notifications.clear()
                     elif engine.is_running:
                         engine.end_time = time.time()
                         engine.is_running = False

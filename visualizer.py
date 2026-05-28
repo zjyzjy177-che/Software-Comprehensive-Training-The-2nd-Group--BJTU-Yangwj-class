@@ -86,6 +86,13 @@ _VIZ_TEXTS = {
         "no_students": "无学生数据",
         "perf_mode": "性能优化模式",
         "view_reset": "视图已重置",
+        "btn_map": "地图",
+        "btn_chart": "折线图",
+        "btn_pie": "饼图",
+        "btn_all": "综合",
+        "color_status": "状态着色",
+        "color_origin": "来源着色",
+        "copyright": "© 2026 BJTU 软件综合实训 第二小组",
     },
     "zh_TW": {
         "window_title": "BJTU食堂就餐流量模擬",
@@ -120,6 +127,13 @@ _VIZ_TEXTS = {
         "no_students": "無學生数据",
         "perf_mode": "效能優化模式",
         "view_reset": "視圖已重置",
+        "btn_map": "地圖",
+        "btn_chart": "折線圖",
+        "btn_pie": "餅圖",
+        "btn_all": "綜合",
+        "color_status": "狀態著色",
+        "color_origin": "來源著色",
+        "copyright": "© 2026 BJTU 軟體綜合實訓 第二小組",
     },
     "en": {
         "window_title": "BJTU Canteen Dining Simulation",
@@ -154,6 +168,35 @@ _VIZ_TEXTS = {
         "no_students": "No students",
         "perf_mode": "Performance Mode",
         "view_reset": "View Reset",
+        "btn_map": "Map",
+        "btn_chart": "Chart",
+        "btn_pie": "Pie",
+        "btn_all": "All",
+        "color_status": "By Status",
+        "color_origin": "By Origin",
+        "copyright": "© 2026 BJTU SE Training Group 2",
+    },
+}
+
+
+_NOTIFY_TEXTS = {
+    "zh_CN": {
+        "canteen_open": "食堂开餐了~",
+        "canteen_close": "食堂打烊了~",
+        "class_end": "{bld}下课了，涌向食堂 (*°▽°*)",
+        "class_end_stag": "{bld}下课了（错峰），涌向食堂 (*°▽°*)",
+    },
+    "zh_TW": {
+        "canteen_open": "食堂開餐了~",
+        "canteen_close": "食堂打烊了~",
+        "class_end": "{bld}下課了，湧向食堂 (*°▽°*)",
+        "class_end_stag": "{bld}下課了（錯峰），湧向食堂 (*°▽°*)",
+    },
+    "en": {
+        "canteen_open": "Canteen Open~",
+        "canteen_close": "Canteen Closed~",
+        "class_end": "{bld} class ends! (*°▽°*)",
+        "class_end_stag": "{bld} class ends (staggered)! (*°▽°*)",
     },
 }
 
@@ -238,6 +281,7 @@ class CanteenVisualizer:
         self.text_labels = []       # 文本标签
         self._bar_patches = []      # 条带 patches
         self._bar_texts = []        # 条带文字
+        self._notifications = []  # [(text_obj, timer), ...]
 
         # 出发地着色
         self.color_by_origin = False  # False=按状态着色 True=按出发地着色
@@ -424,7 +468,7 @@ class CanteenVisualizer:
 
         # 视图切换按钮（Figure 级别矩形块，标题栏下居中）
         self._toggle_buttons = []
-        btn_names = ["地图", "折线图", "饼图", "综合"]
+        btn_names = ["btn_map", "btn_chart", "btn_pie", "btn_all"]
         btn_colors = ['#E74C3C', '#3498DB', '#2ECC71', '#95A5A6']
         for i, (name, color) in enumerate(zip(btn_names, btn_colors)):
             x0, y0 = 0.78 + i * 0.055, 0.95
@@ -432,18 +476,24 @@ class CanteenVisualizer:
             rect = Rectangle((x0, y0), w, h, facecolor=color, edgecolor='white',
                             linewidth=1.5, transform=self.fig.transFigure, zorder=1000)
             self.fig.patches.append(rect)
-            txt = self.fig.text(x0 + w/2, y0 + h/2, name, ha='center', va='center',
+            label = _viz_t(name, self.lang)
+            txt = self.fig.text(x0 + w/2, y0 + h/2, label, ha='center', va='center',
                                fontsize=8, fontweight='bold', color='white', zorder=1001)
-            self._toggle_buttons.append((rect, txt, name))
+            self._toggle_buttons.append((rect, txt, name, label))
 
         # 着色模式切换按钮（视图按钮左侧，同行）
         self._color_btn_rect = Rectangle((0.708, 0.95), 0.065, 0.022,
                                          facecolor='#8E44AD', edgecolor='white',
                                          linewidth=1.5, transform=self.fig.transFigure, zorder=1000)
         self.fig.patches.append(self._color_btn_rect)
+        key = "color_origin" if self.color_by_origin else "color_status"
         self._color_btn_text = self.fig.text(0.708 + 0.065/2, 0.95 + 0.022/2,
-                                             "状态着色", ha='center', va='center',
+                                             _viz_t(key, self.lang), ha='center', va='center',
                                              fontsize=7, fontweight='bold', color='white', zorder=1001)
+
+        # 版权声明（底部居中）
+        self.fig.text(0.5, 0.005, _viz_t("copyright", self.lang),
+                     ha='center', va='bottom', fontsize=7, color='#999999', zorder=100)
 
         # 添加图例（在地图子图上）
         self._add_legend()
@@ -567,11 +617,11 @@ class CanteenVisualizer:
         elif event.button == 1:
             fx, fy = event.x / self.fig.bbox.width, event.y / self.fig.bbox.height
             # 视图切换按钮
-            for rect, txt, name in self._toggle_buttons:
+            for rect, txt, key, label in self._toggle_buttons:
                 x0, y0 = rect.get_x(), rect.get_y()
                 w, h = rect.get_width(), rect.get_height()
                 if x0 <= fx <= x0 + w and y0 <= fy <= y0 + h:
-                    self._switch_to_view(name)
+                    self._switch_to_view(key)
                     return
             # 着色模式切换按钮
             r = self._color_btn_rect
@@ -636,13 +686,13 @@ class CanteenVisualizer:
         for ax in all_axes:
             ax.set_visible(False)
 
-        if name == "地图":
+        if name == "btn_map":
             self.ax_map.set_position([0.05, 0.1, 0.90, 0.78])
             self.ax_map.set_visible(True)
-        elif name == "折线图":
+        elif name == "btn_chart":
             self.ax_stats.set_position([0.10, 0.18, 0.80, 0.62])
             self.ax_stats.set_visible(True)
-        elif name == "饼图":
+        elif name == "btn_pie":
             self.ax_pie.set_position([0.15, 0.15, 0.70, 0.70])
             self.ax_pie.set_visible(True)
         else:  # 综合
@@ -658,12 +708,12 @@ class CanteenVisualizer:
 
     def _update_toggle_buttons(self):
         """根据当前可见面板高亮对应按钮"""
-        for rect, txt, name in self._toggle_buttons:
-            if name == "地图":
+        for rect, txt, key, label in self._toggle_buttons:
+            if key == "btn_map":
                 active = self.ax_map.get_visible()
-            elif name == "折线图":
+            elif key == "btn_chart":
                 active = self.ax_stats.get_visible()
-            elif name == "饼图":
+            elif key == "btn_pie":
                 active = self.ax_pie.get_visible()
             else:
                 active = all(a.get_visible() for a in [self.ax_map, self.ax_stats, self.ax_pie])
@@ -712,10 +762,10 @@ class CanteenVisualizer:
         self._bar_patches = []
         self._bar_texts = []
 
-        max_show = 5
-        bar_h = 0.04
-        start_y = 0.36
-        gap = 0.02
+        max_show = 4
+        bar_h = 0.05
+        start_y = 0.47
+        gap = 0.055
 
         ax.text(0.02, start_y + 0.02, _viz_t("canteen_header", lang),
                 transform=ax.transAxes, fontsize=10, fontweight='bold',
@@ -833,6 +883,19 @@ class CanteenVisualizer:
                           bbox=dict(boxstyle='round,pad=0.2', facecolor='#FFF0F5',
                                    edgecolor='#FF69B4', alpha=0.9))
 
+    def show_notification(self, event_type: str, **kwargs):
+        """显示弹幕通知——多条从上到下排列，三语适配"""
+        tpl = _NOTIFY_TEXTS.get(self.lang, _NOTIFY_TEXTS["zh_CN"]).get(event_type, event_type)
+        msg = tpl.format(**kwargs) if kwargs else tpl
+        n = len(self._notifications)
+        y = 0.96 - n * 0.04
+        txt = self.fig.text(0.5, y, msg, ha='center', va='top',
+                           fontsize=11, fontweight='bold', color='#E74C3C',
+                           bbox=dict(boxstyle='round,pad=0.3',
+                                    facecolor='#FFFACD', edgecolor='#E74C3C', alpha=0.95),
+                           zorder=2000)
+        self._notifications.append([txt, time.time()])
+
     def draw_frame(self, tick: int, students: List[Student], canteens: List[Canteen]) -> None:
         """
         绘制单帧画面（核心方法）
@@ -878,6 +941,18 @@ class CanteenVisualizer:
 
         # 更新信息面板
         self._update_info_panel(tick, students, canteens)
+
+        # 弹幕通知清理 + 顺次下排
+        now = time.time()
+        expired = [n for n in self._notifications if now - n[1] > 1.5]
+        for txt, _ in expired:
+            try:
+                txt.remove()
+            except Exception:
+                pass
+        self._notifications = [n for n in self._notifications if now - n[1] <= 1.5]
+        for i, (txt, _) in enumerate(self._notifications):
+            txt.set_y(0.96 - i * 0.04)
 
         # 粉色模拟钟表 + 数字时钟
         self._draw_clock(tick)
