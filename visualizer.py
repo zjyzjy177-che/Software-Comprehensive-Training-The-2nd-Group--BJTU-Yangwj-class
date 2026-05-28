@@ -320,6 +320,8 @@ class CanteenVisualizer:
         matplotlib.rcParams['axes.labelsize'] = 10
         matplotlib.rcParams['xtick.labelsize'] = 8
         matplotlib.rcParams['ytick.labelsize'] = 8
+        matplotlib.rcParams['keymap.xscale'] = []  # 禁用 L 键拉伸地图
+        matplotlib.rcParams['keymap.yscale'] = []  # 禁用 l 键拉伸地图
 
         # 字体：英文 Times New Roman（加粗），中文微软雅黑
         matplotlib.rcParams['font.family'] = 'sans-serif'
@@ -375,16 +377,18 @@ class CanteenVisualizer:
         except Exception as e:
             print(f"底图加载失败: {e}")
 
-        # 水墨风校园底图（SHIJIZHONG_BJTU.jpg），放在 ax_map 上跟随缩放
+        # 水墨风校园底图（SHIJIZHONG_BJTU.jpg），figure 级别全图背景
         try:
             import matplotlib.image as mpimg
             bg_path = os.path.join(os.path.dirname(__file__), 'assets', 'SHIJIZHONG_BJTU.jpg')
             if os.path.exists(bg_path):
-                bg_img = mpimg.imread(bg_path)
-                self.ax_map.imshow(bg_img, extent=[self.x_min, self.x_max, self.y_min, self.y_max],
-                                  aspect='auto', alpha=0.22, zorder=-100)
+                self._bg_img = mpimg.imread(bg_path)
+                self._bg_ax = self.fig.add_axes([0, 0, 1, 1], zorder=-1000)
+                self._bg_ax.imshow(self._bg_img, aspect='auto', alpha=0.15)
+                self._bg_ax.axis('off')
         except Exception:
-            pass
+            self._bg_ax = None
+            self._bg_img = None
 
         # 设置等比例，确保地图不变形
         self.ax_map.set_aspect('equal', adjustable='box')
@@ -431,6 +435,15 @@ class CanteenVisualizer:
             txt = self.fig.text(x0 + w/2, y0 + h/2, name, ha='center', va='center',
                                fontsize=8, fontweight='bold', color='white', zorder=1001)
             self._toggle_buttons.append((rect, txt, name))
+
+        # 着色模式切换按钮（视图按钮左侧，同行）
+        self._color_btn_rect = Rectangle((0.708, 0.95), 0.065, 0.022,
+                                         facecolor='#8E44AD', edgecolor='white',
+                                         linewidth=1.5, transform=self.fig.transFigure, zorder=1000)
+        self.fig.patches.append(self._color_btn_rect)
+        self._color_btn_text = self.fig.text(0.708 + 0.065/2, 0.95 + 0.022/2,
+                                             "状态着色", ha='center', va='center',
+                                             fontsize=7, fontweight='bold', color='white', zorder=1001)
 
         # 添加图例（在地图子图上）
         self._add_legend()
@@ -538,15 +551,6 @@ class CanteenVisualizer:
             self._update_info_text(f"视图: {modes[self._view_mode]}")
             self._apply_view_mode()
 
-        elif event.key == 'o':
-            # O键：切换着色模式（状态 / 出发地）
-            self.color_by_origin = not self.color_by_origin
-            if hasattr(self.ax_map, 'legend_') and self.ax_map.legend_:
-                self.ax_map.legend_.remove()
-            self._add_legend()
-            mode = "出发地着色" if self.color_by_origin else "状态着色"
-            self._update_info_text(f"着色: {mode}")
-            self.fig.canvas.draw_idle()
 
     # ---------- 鼠标缩放/拖动 ----------
     def _on_scroll(self, event):
@@ -569,6 +573,13 @@ class CanteenVisualizer:
                 if x0 <= fx <= x0 + w and y0 <= fy <= y0 + h:
                     self._switch_to_view(name)
                     return
+            # 着色模式切换按钮
+            r = self._color_btn_rect
+            x0, y0 = r.get_x(), r.get_y()
+            w, h = r.get_width(), r.get_height()
+            if x0 <= fx <= x0 + w and y0 <= fy <= y0 + h:
+                self._toggle_color_mode()
+                return
 
     def _on_mouse_release(self, event):
         self._drag_start = None
@@ -659,6 +670,16 @@ class CanteenVisualizer:
             rect.set_edgecolor('#FFD700' if active else 'white')
             rect.set_linewidth(3 if active else 1.5)
 
+    def _toggle_color_mode(self):
+        """切换着色模式（状态着色 / 出发地着色）"""
+        self.color_by_origin = not self.color_by_origin
+        if hasattr(self.ax_map, 'legend_') and self.ax_map.legend_:
+            self.ax_map.legend_.remove()
+        self._add_legend()
+        label = "出发地着色" if self.color_by_origin else "状态着色"
+        self._color_btn_text.set_text(label)
+        self.fig.canvas.draw_idle()
+
     def _on_mouse_click(self, event):
         pass
 
@@ -681,10 +702,9 @@ class CanteenVisualizer:
         self.info_text.set_text(message)
         self.fig.canvas.draw_idle()
 
-    def _draw_canteen_bars(self, canteens, lang):
-        """在信息面板绘制横向进度条 + 弹窗内显示全量详情"""
+    def _draw_canteen_bars(self, canteens, lang, students=None):
+        """在信息面板绘制横向进度条 + 各食堂来源建筑分布"""
         ax = self.canteen_info_ax
-        # 清除旧的 bar patches（只清我们画的 bar，不清 text）
         for p in getattr(self, '_bar_patches', []):
             p.remove()
         for t in getattr(self, '_bar_texts', []):
@@ -715,7 +735,7 @@ class CanteenVisualizer:
             self._bar_texts.append(t)
 
             # 进度条背景（粉色框）
-            bar_x, bar_w = 0.22, 0.42
+            bar_x, bar_w = 0.18, 0.30
             bg = Rectangle((bar_x, y0), bar_w, bar_h, facecolor='none',
                           edgecolor='#FF69B4', linewidth=1.2,
                           transform=ax.transAxes)
@@ -734,6 +754,22 @@ class CanteenVisualizer:
                         str(queue_len), transform=ax.transAxes,
                         fontsize=11, fontweight='bold', color='#CC0000', va='center')
             self._bar_texts.append(t2)
+
+            # 来源建筑分布（条后方）
+            if students:
+                origin_counts = {}
+                for s in students:
+                    if s.target_canteen_id == canteen.canteen_id and \
+                       s.state in (StudentState.QUEUING, StudentState.EATING):
+                        key = s.origin_building or "?"
+                        origin_counts[key] = origin_counts.get(key, 0) + 1
+                if origin_counts:
+                    sorted_items = sorted(origin_counts.items(), key=lambda x: -x[1])[:3]
+                    parts = [f"{b}:{c}" for b, c in sorted_items]
+                    t3 = ax.text(bar_x + bar_w + 0.08, y0 + bar_h/2,
+                                "  ".join(parts), transform=ax.transAxes,
+                                fontsize=7, va='center', color='#555555')
+                    self._bar_texts.append(t3)
 
     def _draw_clock(self, tick: int):
         """在独立 axes 上绘制粉色模拟钟表 + 数字时钟"""
@@ -1155,27 +1191,12 @@ class CanteenVisualizer:
             f"{_viz_t('info_canteens', lang)}:{canteen_count} | {_viz_t('info_queue', lang)}:{total_queue} | {_viz_t('info_speed', lang)}:{self.animation_speed}ms",
         ]
 
-        # 追加：每个食堂的学生来源建筑分布
-        if self.color_by_origin:
-            info_lines.append("── 各食堂来源建譹 ──")
-            for canteen in canteens:
-                origin_counts = {}
-                for s in students:
-                    if s.target_canteen_id == canteen.canteen_id and \
-                       s.state in (StudentState.QUEUING, StudentState.EATING):
-                        key = s.origin_building or "未知"
-                        origin_counts[key] = origin_counts.get(key, 0) + 1
-                if origin_counts:
-                    sorted_items = sorted(origin_counts.items(), key=lambda x: -x[1])
-                    parts = [f"{bld}:{cnt}" for bld, cnt in sorted_items[:4]]
-                    info_lines.append(f" {canteen.name}: {' '.join(parts)}")
-
-        # 动态字号：行数超过 20 时缩小字体避免溢出
+        # 动态字号
         n_lines = len(info_lines)
         dynamic_size = 7.5 if n_lines <= 20 else (6.5 if n_lines <= 30 else 5.5)
         self.info_text.set_fontsize(dynamic_size)
         self.info_text.set_text("\n".join(info_lines))
-        self._draw_canteen_bars(canteens, lang)
+        self._draw_canteen_bars(canteens, lang, students)
 
     def start_animation(self, update_func, interval: int = 50) -> None:
         """
