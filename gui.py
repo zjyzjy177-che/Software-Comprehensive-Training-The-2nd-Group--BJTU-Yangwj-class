@@ -184,6 +184,25 @@ LANG_TEXTS = {
         "limit_warn_title": "参数上限警告",
         "limit_warn_msg": "以下参数超过建议上限，可能导致卡顿或崩溃：",
         "limit_warn_confirm": "确定要继续吗？",
+        "no_canteen": "请至少勾选一个开放的食堂",
+        "export_title": "导出仿真报告",
+        "export_success": "已导出到:",
+        "success": "成功",
+        "save_settings_title": "仿真保存设置",
+        "export_select_format": "选择导出格式：",
+        "export_save_path": "保存位置：",
+        "export_browse": "浏览...",
+        "export_btn": "导出",
+        "cancel": "取消",
+        "save_auto_save": "仿真完成后自动保存结果",
+        "save_format": "保存格式：",
+        "save_path_label": "保存路径：",
+        "save_browse": "浏览",
+        "save_launch": "启动仿真",
+        "start_time_label": "仿真开始时间:",
+        "open_canteens_label": "开放食堂:",
+        "start_time_invalid": "开始时间格式错误，请使用 HH:MM 格式（如 07:00）",
+        "start_time_range": "开始时间超出范围（00:00-23:59）",
     },
     "zh_TW": {
         "window_title": "BJTU 食堂就餐流量模擬系統",
@@ -300,6 +319,25 @@ LANG_TEXTS = {
         "limit_warn_title": "參數上限警告",
         "limit_warn_msg": "以下參數超過建議上限，可能導致卡頓或崩潰：",
         "limit_warn_confirm": "確定要繼續嗎？",
+        "no_canteen": "請至少勾選一個開放的食堂",
+        "export_title": "導出模擬報告",
+        "export_success": "已導出到:",
+        "success": "成功",
+        "save_settings_title": "模擬保存設置",
+        "export_select_format": "選擇導出格式：",
+        "export_save_path": "保存位置：",
+        "export_browse": "瀏覽...",
+        "export_btn": "導出",
+        "cancel": "取消",
+        "save_auto_save": "模擬完成後自動保存結果",
+        "save_format": "保存格式：",
+        "save_path_label": "保存路徑：",
+        "save_browse": "瀏覽",
+        "save_launch": "啟動模擬",
+        "start_time_label": "模擬開始時間:",
+        "open_canteens_label": "開放食堂:",
+        "start_time_invalid": "開始時間格式錯誤，請使用 HH:MM 格式（如 07:00）",
+        "start_time_range": "開始時間超出範圍（00:00-23:59）",
     },
     "en": {
         "window_title": "BJTU Canteen Dining Flow Simulation System",
@@ -416,6 +454,25 @@ LANG_TEXTS = {
         "limit_warn_title": "Parameter Limit Warning",
         "limit_warn_msg": "The following parameters exceed recommended limits and may cause lag or crash:",
         "limit_warn_confirm": "Continue anyway?",
+        "no_canteen": "Please select at least one canteen",
+        "export_title": "Export Simulation Report",
+        "export_success": "Exported to:",
+        "success": "Success",
+        "save_settings_title": "Simulation Save Settings",
+        "export_select_format": "Select Format:",
+        "export_save_path": "Save To:",
+        "export_browse": "Browse...",
+        "export_btn": "Export",
+        "cancel": "Cancel",
+        "save_auto_save": "Auto-save results after simulation",
+        "save_format": "Format:",
+        "save_path_label": "Save Path:",
+        "save_browse": "Browse",
+        "save_launch": "Launch",
+        "start_time_label": "Start Time:",
+        "open_canteens_label": "Open Canteens:",
+        "start_time_invalid": "Invalid time format, use HH:MM (e.g. 07:00)",
+        "start_time_range": "Time out of range (00:00-23:59)",
     },
 }
 
@@ -530,6 +587,7 @@ _PARAM_TOOLTIPS = {
         "beta": "排队人数权重（β）\n• 值越大 → 学生越倾向去人少的食堂\n• 建议：高峰 0.7，平峰 0.2",
         "viz": "启用后弹出 Matplotlib 动画窗口\n• 实时显示学生移动和食堂排队\n• 注意：学生数 > 500 时动画可能卡顿\n• 空格暂停，↑↓ 调速，R 重置视图",
         "peak": "错峰下课方案对比分析\n• 对比 0/5/10/15/20/30 分钟错峰效果\n• 生成四图对比 + 文本摘要\n• 排队峰值降低越多 = 错峰效果越好",
+        "start_time": "仿真开始时钟时间 (HH:MM)\n• 例如 07:00 或 11:30\n• 钟表从此时间开始计时\n• 课表事件按此时间触发",
     },
     "zh_TW": {
         "ticks": "模擬時長（週期數）\n• 一個 tick 模擬若干秒\n• 建議範圍：50-1000\n• ⚠ 超過 5000 可能明顯卡頓",
@@ -541,6 +599,7 @@ _PARAM_TOOLTIPS = {
         "beta": "排隊人數權重（β）\n• 值越大 → 學生越傾向去人少的食堂\n• 建議：高峰 0.7，平峰 0.2",
         "viz": "啟用後彈出 Matplotlib 動畫窗口\n• 即時顯示學生移動和食堂排隊\n• 注意：學生數 > 500 時動畫可能卡頓\n• 空格暫停，↑↓ 調速，R 重置視圖",
         "peak": "錯峰下課方案對比分析\n• 對比 0/5/10/15/20/30 分鐘錯峰效果\n• 生成四圖對比 + 文本摘要\n• 排隊峰值降低越多 = 錯峰效果越好",
+        "start_time": "模擬開始時鐘時間 (HH:MM)\n• 例如 07:00 或 11:30\n• 時鐘從此時間開始計時\n• 課表事件按此時間觸發",
     },
     "en": {
         "ticks": "Simulation duration (ticks)\n• One tick ≈ several seconds\n• Suggested: 50-1000\n• ⚠ > 5000 may cause lag",
@@ -552,6 +611,7 @@ _PARAM_TOOLTIPS = {
         "beta": "Queue weight (β)\n• Higher → students avoid crowded canteens\n• Suggest: peak hours 0.7, off-peak 0.2",
         "viz": "Enable Matplotlib animation window\n• Real-time student movement & queues\n• Note: > 500 students may lag\n• Space=pause, ↑↓=speed, R=reset",
         "peak": "Peak shift comparison analysis\n• Compare 0/5/10/15/20/30 min stagger\n• Generates 4-chart comparison + summary\n• Higher queue reduction = better stagger",
+        "start_time": "Simulation start time (HH:MM)\n• e.g. 07:00 or 11:30\n• Clock starts counting from this time\n• Schedule events trigger accordingly",
     },
 }
 
@@ -633,7 +693,7 @@ class BJTUSimulationGUI:
     def _build_ui(self):
         self.root.title(self.t("window_title"))
         self.root.geometry("600x740")
-        self.root.resizable(False, False)
+        self.root.resizable(True, True)
 
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
@@ -931,7 +991,9 @@ class BJTUSimulationGUI:
         self.config_scrollable.bind("<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         self._config_canvas = canvas
-        canvas.create_window((0, 0), window=self.config_scrollable, anchor="nw")
+        self._canvas_win = canvas.create_window((0, 0), window=self.config_scrollable, anchor="nw")
+        canvas.bind("<Configure>", lambda e: canvas.coords(self._canvas_win,
+            max(0, (e.width - self.config_scrollable.winfo_reqwidth()) // 2), 0) if hasattr(self, '_canvas_win') else None)
         canvas.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
 
         v_scroll.pack(side="right", fill="y")
@@ -994,20 +1056,20 @@ class BJTUSimulationGUI:
 
         # 仿真开始时间
         i = len(params)
-        lbl = tk.Label(self.lf_params, text="仿真开始时间:", font=(SYSTEM_FONT, 11), bg=self.BG)
+        lbl = tk.Label(self.lf_params, text=self.t("start_time_label"), font=(SYSTEM_FONT, 11), bg=self.BG)
         lbl.grid(row=i, column=0, padx=(5, 0), pady=6, sticky="e")
         self._config_param_labels.append((lbl, "开始时间"))
         tip_st = tk.Label(self.lf_params, text="?", font=(SYSTEM_FONT, 9, "bold"),
                           bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow", width=2, relief="flat")
         tip_st.grid(row=i, column=1, padx=(0, 3), pady=6, sticky="w")
-        ToolTip(tip_st, lambda: "仿真开始时钟时间 (HH:MM)\n• 例如 07:00 或 11:30\n• 钟表从此时间开始计时\n• 课表事件按此时间触发")
+        ToolTip(tip_st, lambda: _get_tooltip("start_time", self.lang))
         self.entry_start_time = tk.Entry(self.lf_params, font=(SYSTEM_FONT, 11), width=12, relief="solid", bd=1)
         self.entry_start_time.insert(0, "07:00")
         self.entry_start_time.grid(row=i, column=2, padx=(0, 5), pady=6, sticky="w")
 
         # 食堂勾选（仿真参数内）
         i += 1
-        tk.Label(self.lf_params, text="开放食堂:", font=(SYSTEM_FONT, 11), bg=self.BG
+        tk.Label(self.lf_params, text=self.t("open_canteens_label"), font=(SYSTEM_FONT, 11), bg=self.BG
                  ).grid(row=i, column=0, padx=(5, 0), pady=6, sticky="e")
         self._canteen_vars = {}
         cf = tk.Frame(self.lf_params, bg=self.BG)
@@ -1608,11 +1670,11 @@ class BJTUSimulationGUI:
         """弹出导出格式和路径选择窗口"""
         engine = getattr(self, '_last_engine', None)
         if engine is None:
-            messagebox.showwarning("导出失败", "没有可导出的仿真结果，请先运行仿真")
+            messagebox.showwarning(self.t("error"), self.t("not_login_msg"))
             return
 
         dlg = tk.Toplevel(self.root)
-        dlg.title("导出仿真报告")
+        dlg.title(self.t("export_title"))
         dlg.geometry("420x300")
         dlg.resizable(False, False)
         dlg.config(bg="#FFF8DC")
@@ -1623,10 +1685,10 @@ class BJTUSimulationGUI:
         y = self.root.winfo_y() + (690 - 250) // 2
         dlg.geometry(f"+{x}+{y}")
 
-        tk.Label(dlg, text="导出仿真报告", font=(SYSTEM_FONT, 14, "bold"),
+        tk.Label(dlg, text=self.t("export_title"), font=(SYSTEM_FONT, 14, "bold"),
                  bg="#27AE60", fg="white", pady=8).pack(fill="x")
 
-        tk.Label(dlg, text="选择导出格式：", font=(SYSTEM_FONT, 11),
+        tk.Label(dlg, text=self.t("export_select_format"), font=(SYSTEM_FONT, 11),
                  bg="#FFF8DC").pack(pady=(10, 4))
         fmt_var = tk.StringVar(value="xlsx")
         fmts = [("Excel 表格 (.xlsx)", "xlsx"),
@@ -1639,14 +1701,14 @@ class BJTUSimulationGUI:
                           font=(SYSTEM_FONT, 10), bg="#FFF8DC",
                           activebackground="#FFF8DC").pack(anchor="w", padx=20)
 
-        tk.Label(dlg, text="保存位置：", font=(SYSTEM_FONT, 11),
+        tk.Label(dlg, text=self.t("export_save_path"), font=(SYSTEM_FONT, 11),
                  bg="#FFF8DC").pack(pady=(10, 4))
         pf = tk.Frame(dlg, bg="#FFF8DC")
         pf.pack()
         path_var = tk.StringVar(value=os.path.join(os.path.expanduser("~"), "Desktop", "仿真报告"))
         path_entry = tk.Entry(pf, textvariable=path_var, font=(SYSTEM_FONT, 10), width=30)
         path_entry.pack(side="left", padx=(10, 4))
-        tk.Button(pf, text="浏览...", font=(SYSTEM_FONT, 9),
+        tk.Button(pf, text=self.t("export_browse"), font=(SYSTEM_FONT, 9),
                   command=lambda: self._browse_export_path(path_var, fmt_var.get())
                   ).pack(side="left")
 
@@ -1676,19 +1738,19 @@ class BJTUSimulationGUI:
                     os.system(f'open -R "{path}"')
                 elif sys.platform == "win32":
                     os.system(f'explorer /select,"{path}"')
-                messagebox.showinfo("导出成功", f"已导出到:\n{path}")
+                messagebox.showinfo(self.t("success"), f"{self.t('export_success')}:\n{path}")
             except ImportError as e:
                 messagebox.showerror("缺少依赖", f"请先安装依赖:\n{e}", parent=dlg)
             except Exception as e:
-                messagebox.showerror("导出失败", str(e), parent=dlg)
+                messagebox.showerror(self.t("error"), str(e), parent=dlg)
 
         bf = tk.Frame(dlg, bg="#FFF8DC")
         bf.pack(pady=(12, 8))
-        self._make_btn(bf, "导出", font=(SYSTEM_FONT, 11, "bold"),
+        self._make_btn(bf, self.t("export_btn"), font=(SYSTEM_FONT, 11, "bold"),
                        bg="#27AE60", fg="white", active_bg="#1E8449", active_fg="white",
                        command=_do_export, padx=16, pady=4,
                        pack_side="left", pack_padx=8)
-        self._make_btn(bf, "取消", font=(SYSTEM_FONT, 10),
+        self._make_btn(bf, self.t("cancel"), font=(SYSTEM_FONT, 10),
                        bg="#DDD", fg="#333", active_bg="#BBB", active_fg="#333",
                        command=dlg.destroy, padx=12, pady=4,
                        pack_side="left", pack_padx=8)
@@ -1852,7 +1914,6 @@ class BJTUSimulationGUI:
     def _show_config_panel(self):
         self.login_frame.pack_forget()
         self.config_frame.pack(fill="both", expand=True)
-        # 管理员显示用户管理按钮
         if self.current_role == "admin":
             self.btn_usermgr.pack(side="right", padx=3, pady=2, before=self.btn_logout)
         role_display = self.t(self.current_role) if self.current_role != "admin" else "管理员"
@@ -1860,8 +1921,12 @@ class BJTUSimulationGUI:
             info=f"{role_display} | {self.current_user}"))
         self.status_bar.config(text=self.t("status_logged_in").format(
             role=role_display, user=self.current_user))
-        # 强制刷新防 macOS 空白
-        self.root.update_idletasks()
+        # Canvas 内容延迟刷新（解决 Tk 窗口不渲染问题）
+        def _refresh_canvas():
+            self._config_canvas.yview_moveto(1)
+            self._config_canvas.yview_moveto(0)
+            self._config_canvas.update_idletasks()
+        self.root.after(50, _refresh_canvas)
 
     def _back_to_login(self):
         self.current_user = None
@@ -1929,6 +1994,7 @@ class BJTUSimulationGUI:
 
             # 保存完整配置（含坐标），启动仿真时覆盖 campus_bounds.json
             self._config_data = data
+            self._auto_save_settings = None
 
             messagebox.showinfo(self.t("load_success"),
                                 self.t("config_loaded", file=os.path.basename(filepath)))
@@ -1960,6 +2026,19 @@ class BJTUSimulationGUI:
         except ValueError:
             errors.append(self.t("spawn_must_number"))
 
+        # 开始时间校验
+        try:
+            st = self.entry_start_time.get().strip()
+            parts = st.split(":")
+            if len(parts) != 2 or len(parts[0]) != 2 or len(parts[1]) != 2:
+                errors.append(self.t("start_time_invalid"))
+            else:
+                h, m = int(parts[0]), int(parts[1])
+                if not (0 <= h <= 23 and 0 <= m <= 59):
+                    errors.append(self.t("start_time_range"))
+        except ValueError:
+            errors.append(self.t("start_time_invalid"))
+
         return errors
 
     # ---------- 强制停止仿真 ----------
@@ -1984,7 +2063,7 @@ class BJTUSimulationGUI:
     def _show_auto_save_dialog(self):
         """仿真前的自动保存设置弹窗，返回设置 dict 或 None（取消）"""
         dlg = tk.Toplevel(self.root)
-        dlg.title("仿真保存设置")
+        dlg.title(self.t("save_settings_title"))
         dlg.geometry("440x360")
         dlg.resizable(False, False)
         dlg.config(bg="#F0F8FF")
@@ -1995,18 +2074,18 @@ class BJTUSimulationGUI:
         y = self.root.winfo_y() + (690 - 300) // 2
         dlg.geometry(f"+{x}+{y}")
 
-        tk.Label(dlg, text="仿真保存设置", font=(SYSTEM_FONT, 14, "bold"),
+        tk.Label(dlg, text=self.t("save_settings_title"), font=(SYSTEM_FONT, 14, "bold"),
                  bg="#2980B9", fg="white", pady=8).pack(fill="x")
 
         # 启用自动保存
         auto_var = tk.BooleanVar(value=bool(self._auto_save_settings))
-        cb = tk.Checkbutton(dlg, text="仿真完成后自动保存结果", variable=auto_var,
+        cb = tk.Checkbutton(dlg, text=self.t("save_auto_save"), variable=auto_var,
                             font=(SYSTEM_FONT, 11, "bold"), bg="#F0F8FF",
                             activebackground="#F0F8FF")
         cb.pack(anchor="w", padx=15, pady=(10, 2))
 
         # 格式选择
-        tk.Label(dlg, text="保存格式：", font=(SYSTEM_FONT, 10),
+        tk.Label(dlg, text=self.t("save_format"), font=(SYSTEM_FONT, 10),
                  bg="#F0F8FF").pack(anchor="w", padx=20, pady=(6, 2))
         fmt_frame = tk.Frame(dlg, bg="#F0F8FF")
         fmt_frame.pack(anchor="w", padx=25)
@@ -2024,7 +2103,7 @@ class BJTUSimulationGUI:
                        activebackground="#F0F8FF").pack(anchor="w")
 
         # 保存路径
-        tk.Label(dlg, text="保存路径：", font=(SYSTEM_FONT, 10),
+        tk.Label(dlg, text=self.t("save_path_label"), font=(SYSTEM_FONT, 10),
                  bg="#F0F8FF").pack(anchor="w", padx=20, pady=(8, 2))
         path_frame = tk.Frame(dlg, bg="#F0F8FF")
         path_frame.pack(anchor="w", padx=20)
@@ -2032,7 +2111,7 @@ class BJTUSimulationGUI:
         path_var = tk.StringVar(value=default_path)
         tk.Entry(path_frame, textvariable=path_var, font=(SYSTEM_FONT, 10),
                  width=32).pack(side="left")
-        tk.Button(path_frame, text="浏览", font=(SYSTEM_FONT, 9),
+        tk.Button(path_frame, text=self.t("save_browse"), font=(SYSTEM_FONT, 9),
                   command=lambda: self._browse_export_path(path_var, "xlsx")
                   ).pack(side="left", padx=4)
 
@@ -2059,11 +2138,11 @@ class BJTUSimulationGUI:
 
         bf = tk.Frame(dlg, bg="#F0F8FF")
         bf.pack(pady=(16, 8))
-        self._make_btn(bf, "启动仿真", font=(SYSTEM_FONT, 12, "bold"),
+        self._make_btn(bf, self.t("save_launch"), font=(SYSTEM_FONT, 12, "bold"),
                        bg="#2980B9", fg="white", active_bg="#1F6DA0", active_fg="white",
                        command=_on_start, padx=20, pady=5,
                        pack_side="left", pack_padx=10)
-        self._make_btn(bf, "取消", font=(SYSTEM_FONT, 10),
+        self._make_btn(bf, self.t("cancel"), font=(SYSTEM_FONT, 10),
                        bg="#DDD", fg="#333", active_bg="#BBB", active_fg="#333",
                        command=dlg.destroy, padx=14, pady=4,
                        pack_side="left", pack_padx=10)
@@ -2102,11 +2181,12 @@ class BJTUSimulationGUI:
             msg += "\n".join(f"  • {w}" for w in limit_warnings)
             msg += "\n\n" + self.t("limit_warn_confirm")
             if not messagebox.askyesno(self.t("limit_warn_title"), msg):
+                self._auto_save_settings = None
                 return
 
         open_canteens = [n for n, v in self._canteen_vars.items() if v.get()]
         if len(open_canteens) < 1:
-            messagebox.showwarning("未选择食堂", "请至少勾选一个开放的食堂")
+            messagebox.showwarning("未选择食堂", self.t("no_canteen"))
             return
 
         config_dict = {

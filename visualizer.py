@@ -292,6 +292,11 @@ class CanteenVisualizer:
             '#AAFFC3', '#808000', '#FFD8B1', '#000075', '#A9A9A9',
         ]
         self._origin_color_map = {}  # building_name → color
+        # 预填充常见建筑颜色，点击着色立即生效
+        _default_buildings = ["思源楼","逸夫楼","9教","思源东楼","思源西楼","土木工程楼","机械工程楼","16宿舍","嘉园","图书馆","科学会堂","校史馆","宿舍区","四号公寓"]
+        for _b in _default_buildings:
+            ci = len(self._origin_color_map) % len(self._origin_palette)
+            self._origin_color_map[_b] = self._origin_palette[ci]
 
         # 数据历史（用于统计图）
         self.tick_history = []      # 周期历史
@@ -721,13 +726,13 @@ class CanteenVisualizer:
             rect.set_linewidth(3 if active else 1.5)
 
     def _toggle_color_mode(self):
-        """切换着色模式（状态着色 / 出发地着色）"""
+        """切换着色模式"""
         self.color_by_origin = not self.color_by_origin
         if hasattr(self.ax_map, 'legend_') and self.ax_map.legend_:
             self.ax_map.legend_.remove()
         self._add_legend()
-        label = "出发地着色" if self.color_by_origin else "状态着色"
-        self._color_btn_text.set_text(label)
+        key = "color_origin" if self.color_by_origin else "color_status"
+        self._color_btn_text.set_text(_viz_t(key, self.lang))
         self.fig.canvas.draw_idle()
 
     def _on_mouse_click(self, event):
