@@ -891,6 +891,7 @@ class CanteenVisualizer:
         y = 0.96 - n * 0.04
         txt = self.fig.text(0.5, y, msg, ha='center', va='top',
                            fontsize=11, fontweight='bold', color='#E74C3C',
+                           alpha=1.0,
                            bbox=dict(boxstyle='round,pad=0.3',
                                     facecolor='#FFFACD', edgecolor='#E74C3C', alpha=0.95),
                            zorder=2000)
@@ -942,15 +943,24 @@ class CanteenVisualizer:
         # 更新信息面板
         self._update_info_panel(tick, students, canteens)
 
-        # 弹幕通知清理 + 顺次下排
+        # 弹幕淡出 + 顺次下排
         now = time.time()
-        expired = [n for n in self._notifications if now - n[1] > 1.5]
+        for txt, t0 in self._notifications:
+            age = now - t0
+            if age < 1.0:
+                txt.set_alpha(1.0)
+            elif age < 2.0:
+                txt.set_alpha(1.0 - (age - 1.0))  # 1.0→2.0s 淡出
+            else:
+                txt.set_alpha(0.0)
+        # 移除已完全透明的
+        expired = [n for n in self._notifications if now - n[1] > 2.0]
         for txt, _ in expired:
             try:
                 txt.remove()
             except Exception:
                 pass
-        self._notifications = [n for n in self._notifications if now - n[1] <= 1.5]
+        self._notifications = [n for n in self._notifications if now - n[1] <= 2.0]
         for i, (txt, _) in enumerate(self._notifications):
             txt.set_y(0.96 - i * 0.04)
 
