@@ -1058,7 +1058,7 @@ class BJTUSimulationGUI:
         i = len(params)
         lbl = tk.Label(self.lf_params, text=self.t("start_time_label"), font=(SYSTEM_FONT, 11), bg=self.BG)
         lbl.grid(row=i, column=0, padx=(5, 0), pady=6, sticky="e")
-        self._config_param_labels.append((lbl, "开始时间"))
+        self._config_param_labels.append((lbl, "start_time_label"))
         tip_st = tk.Label(self.lf_params, text="?", font=(SYSTEM_FONT, 9, "bold"),
                           bg="#d0d8e8", fg=self.BLUE, cursor="question_arrow", width=2, relief="flat")
         tip_st.grid(row=i, column=1, padx=(0, 3), pady=6, sticky="w")
@@ -1069,8 +1069,9 @@ class BJTUSimulationGUI:
 
         # 食堂勾选（仿真参数内）
         i += 1
-        tk.Label(self.lf_params, text=self.t("open_canteens_label"), font=(SYSTEM_FONT, 11), bg=self.BG
-                 ).grid(row=i, column=0, padx=(5, 0), pady=6, sticky="e")
+        canteen_lbl = tk.Label(self.lf_params, text=self.t("open_canteens_label"), font=(SYSTEM_FONT, 11), bg=self.BG)
+        canteen_lbl.grid(row=i, column=0, padx=(5, 0), pady=6, sticky="e")
+        self._config_param_labels.append((canteen_lbl, "open_canteens_label"))
         self._canteen_vars = {}
         cf = tk.Frame(self.lf_params, bg=self.BG)
         cf.grid(row=i, column=1, columnspan=2, padx=5, pady=6, sticky="w")

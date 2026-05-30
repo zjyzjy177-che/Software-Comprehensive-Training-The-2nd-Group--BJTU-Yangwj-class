@@ -722,6 +722,17 @@ class SimulationEngine:
                     target_canteen = self._find_canteen_by_id(student.target_canteen_id)
                     if target_canteen:
                         target_canteen.add_student_to_queue(student)
+                else:
+                    # 食堂打烊了，让未就餐的学生离开
+                    student.state = StudentState.LEAVING
+                    student.state_timer = 0
+
+            # 食堂关闭时，还没到食堂的学生也离开
+            if student.state == StudentState.WALKING:
+                h2, m2 = self._tick_to_sim_time(self.current_tick)
+                if not self._is_canteen_open(f"{h2:02d}:{m2:02d}"):
+                    student.state = StudentState.LEAVING
+                    student.state_timer = 0
 
             # 如果学生已离开，标记为待移除
             if not is_active:
