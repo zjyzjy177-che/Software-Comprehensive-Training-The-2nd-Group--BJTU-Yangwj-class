@@ -530,7 +530,8 @@ class SimulationEngine:
                 destination=target_door,
                 speed=speed,
                 eating_time=eating_time,
-                origin_building=origin_building
+                origin_building=origin_building,
+                spawn_tick=self.current_tick
             )
             student.target_canteen_id = target_canteen.canteen_id
 
@@ -677,7 +678,8 @@ class SimulationEngine:
             stagger_enabled = self.config.get('stagger_enabled', True)
             is_stag = stagger_enabled and "12:20" in current_time
             etype = "class_end_stag" if is_stag else "class_end"
-            self.notifications.append((etype, {"bld": building_name}))
+            bpos = self.config.get('building_coords', {}).get(building_name, (0, 0))
+            self.notifications.append((etype, {"bld": building_name, "x": bpos[0], "y": bpos[1]}))
             if self.current_tick % 50 == 0:
                 print(f"Tick {self.current_tick} ({current_time}): "
                       f"{building_name}下课({mode})，爆发生成{burst_size}名学生")

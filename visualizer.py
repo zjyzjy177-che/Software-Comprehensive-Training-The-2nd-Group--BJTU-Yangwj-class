@@ -281,7 +281,8 @@ class CanteenVisualizer:
         self.text_labels = []       # 文本标签
         self._bar_patches = []      # 条带 patches
         self._bar_texts = []        # 条带文字
-        self._notifications = []  # [(text_obj, timer), ...]
+        self._notifications = []
+        self._burst_effects = []  # [{x, y, timer, ...}]
 
         # 出发地着色
         self.color_by_origin = False  # False=按状态着色 True=按出发地着色
@@ -901,6 +902,12 @@ class CanteenVisualizer:
                                     facecolor='#FFFACD', edgecolor='#E74C3C', alpha=0.95),
                            zorder=2000)
         self._notifications.append([txt, time.time()])
+        if event_type in ("class_end", "class_end_stag") and "x" in kwargs and "y" in kwargs:
+            self._burst_effects.append({
+                "x": kwargs["x"], "y": kwargs["y"],
+                "start": time.time(), "duration": 2.0,
+                "max_r": 30 + (len(self._burst_effects) % 3) * 10
+            })
 
     def draw_frame(self, tick: int, students: List[Student], canteens: List[Canteen]) -> None:
         """
@@ -940,7 +947,7 @@ class CanteenVisualizer:
         self._draw_canteens(canteens)
 
         # 绘制学生
-        self._draw_students(students)
+        self._draw_students(students, tick)
 
         # 更新统计图表
         self._update_statistics(tick, students, canteens)
@@ -969,7 +976,7 @@ class CanteenVisualizer:
         for i, (txt, _) in enumerate(self._notifications):
             txt.set_y(0.96 - i * 0.04)
 
-        # 粉色模拟钟表 + 数字时钟
+# 粉色模拟钟表 + 数字时钟
         self._draw_clock(tick)
 
         # 刷新画布
@@ -1074,7 +1081,7 @@ class CanteenVisualizer:
                                              clip_on=True, clip_box=self.ax_map.bbox)
                 self.text_labels.append(queue_text)
 
-    def _draw_students(self, students: List[Student]) -> None:
+    def _draw_students(self, students: List[Student], current_tick: int = 0) -> None:
         """绘制学生：按状态着色（蓝/红/绿/紫）或按出发建筑着色"""
         import random as _rnd
 

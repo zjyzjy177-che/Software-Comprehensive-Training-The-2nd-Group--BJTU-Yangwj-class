@@ -498,6 +498,16 @@ class BJTUConfig:
         # 传递建筑权重（用于加权学生生成）
         config['building_weights'] = self.DEFAULT_BUILDING_WEIGHTS.copy()
 
+        # 根据 stagger_enabled 调整课表：关闭错峰时 12:20→12:00 同时下课
+        stagger = config.get('stagger_enabled', True)
+        if not stagger:
+            schedules = config.get('class_schedules', {})
+            for bname, slots in schedules.items():
+                for slot in slots:
+                    if slot['end'] == '12:20':
+                        slot['end'] = '12:00'
+            config['class_schedules'] = schedules
+
         # 传递道路网络数据（用于道路约束的学生移动）
         config['road_segments'] = list(self.ROAD_SEGMENTS)
 

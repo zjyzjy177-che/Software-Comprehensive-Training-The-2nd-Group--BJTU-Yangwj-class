@@ -66,7 +66,8 @@ class Student:
 
     def __init__(self, student_id: int, position: Tuple[float, float],
                  destination: Tuple[float, float], speed: float = None,
-                 eating_time: int = None, origin_building: str = None):
+                 eating_time: int = None, origin_building: str = None,
+                 spawn_tick: int = 0):
         """
         初始化学生对象
 
@@ -95,6 +96,7 @@ class Student:
 
         # 出发建筑（用于按来源着色）
         self.origin_building = origin_building
+        self.spawn_tick = spawn_tick
 
         # 目标食堂和窗口
         self.target_canteen_id = None  # 目标食堂ID，在choose_canteen方法中设置
