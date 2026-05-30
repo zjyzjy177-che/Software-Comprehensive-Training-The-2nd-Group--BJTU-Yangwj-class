@@ -787,7 +787,7 @@ class BJTUSimulationGUI:
                                        bg=self.WHITE, fg=self.BLUE_DARK)
         self.lbl_card_title.place(relx=0.5, rely=0.5, anchor="center")
 
-        self.btn_admin = self._make_btn(title_row, self.t("admin") + "？",
+        self.btn_admin = self._make_btn(title_row, self.t("admin") + "?",
                                         font=(SYSTEM_FONT, 9, "bold"),
                                         bg="#CC0000", fg="#FFD700",
                                         active_bg="#990000", active_fg="#FFD700",
@@ -1752,7 +1752,7 @@ class BJTUSimulationGUI:
                 if sys.platform == "darwin":
                     os.system(f'open -R "{path}"')
                 elif sys.platform == "win32":
-                    os.system(f'explorer /select,"{path}"')
+                    os.startfile(os.path.dirname(path))
                 messagebox.showinfo(self.t("success"), f"{self.t('export_success')}:\n{path}")
             except ImportError as e:
                 messagebox.showerror("缺少依赖", f"请先安装依赖:\n{e}", parent=dlg)
@@ -1900,7 +1900,7 @@ class BJTUSimulationGUI:
                         if sys.platform == "darwin":
                             os.system(f'open "{img_path}"')
                         elif sys.platform == "win32":
-                            os.system(f'start "" "{img_path}"')
+                            os.startfile(img_path)
                         else:
                             os.system(f'xdg-open "{img_path}"')
                         self.result_text.insert(tk.END, "\n对比图表已在外部窗口中打开\n")
@@ -1923,7 +1923,7 @@ class BJTUSimulationGUI:
         if sys.platform == "darwin":
             os.system(f'open "{USER_FILE}"')
         elif sys.platform == "win32":
-            os.system(f'start "" "{USER_FILE}"')
+            os.startfile(USER_FILE)
         else:
             os.system(f'xdg-open "{USER_FILE}"')
 
@@ -1933,7 +1933,7 @@ class BJTUSimulationGUI:
         self.config_frame.pack(fill="both", expand=True)
         if self.current_role == "admin":
             self.btn_usermgr.pack(side="right", padx=3, pady=2, before=self.btn_logout)
-        role_display = self.t(self.current_role) if self.current_role != "admin" else "管理员"
+        role_display = self.t(self.current_role) if self.current_role != "admin" else self.t("admin")
         self.info_user_label.config(text=self.t("current_user").format(
             info=f"{role_display} | {self.current_user}"))
         self.status_bar.config(text=self.t("status_logged_in").format(
@@ -2047,7 +2047,7 @@ class BJTUSimulationGUI:
         try:
             st = self.entry_start_time.get().strip()
             parts = st.split(":")
-            if len(parts) != 2 or len(parts[0]) != 2 or len(parts[1]) != 2:
+            if len(parts) != 2 or len(parts[1]) != 2 or len(parts[0]) < 1 or len(parts[0]) > 2:
                 errors.append(self.t("start_time_invalid"))
             else:
                 h, m = int(parts[0]), int(parts[1])
@@ -2192,7 +2192,6 @@ class BJTUSimulationGUI:
             limit_warnings.append(_PARAM_LIMIT_WARNINGS.get(lang, _PARAM_LIMIT_WARNINGS["zh_CN"])["ticks"])
         if students_val > _PARAM_LIMITS["students"]:
             limit_warnings.append(_PARAM_LIMIT_WARNINGS.get(lang, _PARAM_LIMIT_WARNINGS["zh_CN"])["students"])
-            limit_warnings.append(_PARAM_LIMIT_WARNINGS.get(lang, _PARAM_LIMIT_WARNINGS["zh_CN"])["canteens"])
         if limit_warnings:
             msg = self.t("limit_warn_msg") + "\n\n"
             msg += "\n".join(f"  • {w}" for w in limit_warnings)
@@ -2203,7 +2202,7 @@ class BJTUSimulationGUI:
 
         open_canteens = [n for n, v in self._canteen_vars.items() if v.get()]
         if len(open_canteens) < 1:
-            messagebox.showwarning("未选择食堂", self.t("no_canteen"))
+            messagebox.showwarning(self.t("no_canteen"), self.t("no_canteen"))
             return
 
         config_dict = {

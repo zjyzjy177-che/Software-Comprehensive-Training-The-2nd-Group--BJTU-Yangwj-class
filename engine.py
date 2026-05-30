@@ -468,7 +468,6 @@ class SimulationEngine:
             if slot['start'] <= current_time <= slot['end']:
                 return True
         return False
-        return False
 
     def _get_schedule_events(self, current_time: str) -> tuple:
         """

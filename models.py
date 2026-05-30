@@ -161,9 +161,9 @@ class Student:
             distance_to_dest = self._calculate_distance(self.position, self.destination)
             if distance_to_dest < self.ARRIVAL_THRESHOLD:
                 # 到达食堂，状态转换为排队
+                self.arrival_time = self.state_timer  # 记录行走耗时
                 self.state = StudentState.QUEUING
                 self.state_timer = 0  # 重置状态计时器
-                self.arrival_time = self.state_timer  # 记录到达时间
                 print(f"学生{self.student_id}已到达食堂，开始排队")
 
         elif self.state == StudentState.QUEUING:
@@ -181,9 +181,9 @@ class Student:
             # 检查用餐是否结束
             if self.state_timer >= self.eating_time:
                 # 用餐结束，状态转换为离开
+                self.leave_time = self.state_timer  # 记录用餐耗时
                 self.state = StudentState.LEAVING
                 self.state_timer = 0
-                self.leave_time = self.state_timer
                 print(f"学生{self.student_id}用餐结束，准备离开")
 
         elif self.state == StudentState.LEAVING:
