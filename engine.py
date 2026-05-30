@@ -674,7 +674,8 @@ class SimulationEngine:
                 mode = '课间'
             self._spawn_class_end_burst(building_name, burst_size,
                                         len(class_ends), total_scheduled)
-            is_stag = "12:20" in current_time  # 12:20是错峰下课
+            stagger_enabled = self.config.get('stagger_enabled', True)
+            is_stag = stagger_enabled and "12:20" in current_time
             etype = "class_end_stag" if is_stag else "class_end"
             self.notifications.append((etype, {"bld": building_name}))
             if self.current_tick % 50 == 0:

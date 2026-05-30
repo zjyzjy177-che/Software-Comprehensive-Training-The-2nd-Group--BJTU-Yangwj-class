@@ -382,6 +382,7 @@ def create_config_from_gui(gui_config: Dict[str, Any]) -> Dict[str, Any]:
     config = config_obj.get_simulation_config()
     config['_config_obj'] = config_obj
     config['open_canteens'] = getattr(config_obj, 'open_canteens', [])
+    config['stagger_enabled'] = gui_config.get('stagger_enabled', True)
     return config
 
 

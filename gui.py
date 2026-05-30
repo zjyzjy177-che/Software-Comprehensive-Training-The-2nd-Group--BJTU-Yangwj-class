@@ -203,6 +203,7 @@ LANG_TEXTS = {
         "open_canteens_label": "开放食堂:",
         "start_time_invalid": "开始时间格式错误，请使用 HH:MM 格式（如 07:00）",
         "start_time_range": "开始时间超出范围（00:00-23:59）",
+        "stagger_toggle": "午间错峰下课（12:00→12:20 分批）",
     },
     "zh_TW": {
         "window_title": "BJTU 食堂就餐流量模擬系統",
@@ -338,6 +339,7 @@ LANG_TEXTS = {
         "open_canteens_label": "開放食堂:",
         "start_time_invalid": "開始時間格式錯誤，請使用 HH:MM 格式（如 07:00）",
         "start_time_range": "開始時間超出範圍（00:00-23:59）",
+        "stagger_toggle": "午間錯峰下課（12:00→12:20 分批）",
     },
     "en": {
         "window_title": "BJTU Canteen Dining Flow Simulation System",
@@ -473,6 +475,7 @@ LANG_TEXTS = {
         "open_canteens_label": "Open Canteens:",
         "start_time_invalid": "Invalid time format, use HH:MM (e.g. 07:00)",
         "start_time_range": "Time out of range (00:00-23:59)",
+        "stagger_toggle": "Stagger Lunch Peak (12:00→12:20 batches)",
     },
 }
 
@@ -1101,6 +1104,13 @@ class BJTUSimulationGUI:
             row=0, column=2, padx=(0, 5), pady=6, sticky="w")
 
         # 权重调节
+        # 错峰开关
+        self.stagger_var = tk.BooleanVar(value=True)
+        tk.Checkbutton(self.lf_strategy, text=self.t("stagger_toggle"),
+                       variable=self.stagger_var, font=(SYSTEM_FONT, 10),
+                       bg=self.BG, activebackground=self.BG
+                       ).grid(row=1, column=0, columnspan=3, padx=5, pady=4, sticky="w")
+
         self.lf_weight = tk.LabelFrame(self.config_scrollable, text=self.t("weight_label"),
                                        font=(SYSTEM_FONT, 12, "bold"), bg=self.BG,
                                        fg=self.BLUE_DARK, padx=10, pady=10)
@@ -1280,6 +1290,10 @@ class BJTUSimulationGUI:
             lbl.config(text=self.t(tkey))
         self.lf_strategy.config(text=self.t("strategy_label"))
         self.lbl_choose_strat.config(text=self.t("choose_strategy"))
+        # 刷新错峰开关
+        for w in self.lf_strategy.winfo_children():
+            if isinstance(w, tk.Checkbutton):
+                w.config(text=self.t("stagger_toggle"))
         self.lf_weight.config(text=self.t("weight_label"))
         self.lbl_alpha.config(text=self.t("alpha_label"))
         self.lbl_beta.config(text=self.t("beta_label"))
@@ -1857,8 +1871,10 @@ class BJTUSimulationGUI:
                         prev_backend = _plt.get_backend()
                         _plt.switch_backend('Agg')
                         try:
+                            import os as _os
                             from peak_shift import plot_comparison
-                            plot_comparison(results, "peak_shift")
+                            output_path = _os.path.join(_os.path.expanduser("~"), "Desktop", "peak_shift")
+                            plot_comparison(results, output_path)
                         finally:
                             _plt.switch_backend(prev_backend)
                     except Exception as pe:
@@ -1879,7 +1895,7 @@ class BJTUSimulationGUI:
                         self.result_text.insert(tk.END,
                             f"{label:<14} {r['max_queue']:>8} {r['avg_wait']:>8.1f} {red_str:>8}\n")
 
-                    img_path = os.path.join(os.path.dirname(__file__), "peak_shift_comparison.png")
+                    img_path = os.path.join(os.path.expanduser("~"), "Desktop", "peak_shift_comparison.png")
                     if os.path.exists(img_path):
                         if sys.platform == "darwin":
                             os.system(f'open "{img_path}"')
@@ -2197,6 +2213,7 @@ class BJTUSimulationGUI:
             'spawn_rate': float(self.entry_spawn.get()),
             'enable_visualization': self.enable_viz_var.get(),
             'open_canteens': open_canteens,
+            'stagger_enabled': self.stagger_var.get(),
             'algorithm_params': {
                 'distance_weight': self.alpha_var.get(),
                 'queue_weight': self.beta_var.get(),
