@@ -10,14 +10,14 @@
 
 [Setup]
 AppId={{B3D2F8A1-6C5E-4F92-AE41-9D7E5B3C8F12}
-AppName={#MyAppName}
+AppName={#MyAppNameCN}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
-DefaultGroupName={#MyAppName}
+DefaultGroupName={#MyAppNameCN}
 DisableProgramGroupPage=no
 OutputDir=..\dist
 OutputBaseFilename=BJTU_Canteen_Simulation_Setup_v{#MyAppVersion}
@@ -32,11 +32,7 @@ PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesInstallIn64BitMode=x64compatible
 
 [Languages]
-Name: "chinese"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
-Name: "english"; MessagesFile: "compiler:Default.isl"
-
-[CustomMessages]
-english.AppNameCN=BJTU 食堂就餐流量仿真系统
+Name: "chinese"; MessagesFile: "ChineseSimplified.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
