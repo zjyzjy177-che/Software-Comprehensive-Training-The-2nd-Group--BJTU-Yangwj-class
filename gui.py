@@ -1866,17 +1866,10 @@ class BJTUSimulationGUI:
                     self.stop_btn.pack_forget()
                     self.btn_peak._lbl.config(text=self.t("peak_shift_btn"))
                     try:
-                        import matplotlib.pyplot as _plt
-                        _plt.close('all')
-                        prev_backend = _plt.get_backend()
-                        _plt.switch_backend('Agg')
-                        try:
-                            import os as _os
-                            from peak_shift import plot_comparison
-                            output_path = _os.path.join(_os.path.expanduser("~"), "Desktop", "peak_shift")
-                            plot_comparison(results, output_path)
-                        finally:
-                            _plt.switch_backend(prev_backend)
+                        from peak_shift import plot_comparison
+                        import os as _os
+                        output_path = _os.path.join(_os.path.expanduser("~"), "Desktop", "peak_shift")
+                        plot_comparison(results, output_path)
                     except Exception as pe:
                         self.result_text.insert(tk.END, f"\n图表生成失败: {pe}\n")
                     self.result_text.delete("1.0", tk.END)
