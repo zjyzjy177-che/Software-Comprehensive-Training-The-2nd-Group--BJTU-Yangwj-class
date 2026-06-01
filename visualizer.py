@@ -990,7 +990,7 @@ class CanteenVisualizer:
         """清除上一帧的图形元素"""
         # 清除学生点
         for point in self.student_points:
-            if point in self.ax_map.collections:
+            if point in self.ax_map.lines:
                 point.remove()
         self.student_points.clear()
 
@@ -1122,9 +1122,12 @@ class CanteenVisualizer:
             for student in students:
                 if student.state in students_by_state:
                     px, py = student.position
-                    if student.state in (StudentState.QUEUING, StudentState.EATING):
-                        px += _rnd.uniform(-14, 14)
-                        py += _rnd.uniform(-14, 14)
+                    if student.state == StudentState.WALKING:
+                        px += _rnd.uniform(-3, 3)
+                        py += _rnd.uniform(-3, 3)
+                    elif student.state in (StudentState.QUEUING, StudentState.EATING):
+                        px += _rnd.uniform(-18, 18)
+                        py += _rnd.uniform(-18, 18)
                     students_by_state[student.state][0].append((px, py))
 
             for state, (coords, color) in students_by_state.items():
@@ -1132,8 +1135,9 @@ class CanteenVisualizer:
                     continue
                 xs = [c[0] for c in coords]
                 ys = [c[1] for c in coords]
+                ms = self.point_size * 0.6 if state == StudentState.LEAVING else self.point_size * 0.9
                 pts, = self.ax_map.plot(xs, ys, 'o',
-                                        markersize=self.point_size * 0.8,
+                                        markersize=ms,
                                         markerfacecolor=color, alpha=0.8,
                                         markeredgecolor='black', markeredgewidth=0.5,
                                         linestyle='none')
@@ -1208,7 +1212,7 @@ class CanteenVisualizer:
         for student in students:
             if student.state == StudentState.WALKING:
                 state_counts[walking_key] += 1
-            elif student.state == StudentState.QUEUING:
+            elif True:  # fallthrough
                 state_counts[queuing_key] += 1
             elif student.state == StudentState.EATING:
                 state_counts[eating_key] += 1
