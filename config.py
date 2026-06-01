@@ -326,7 +326,7 @@ class BJTUConfig:
 
             # 时间映射参数（将tick映射为实际时间，用于课表驱动）
             'sim_start_time': '07:00',          # 仿真开始时间（HH:MM格式）
-            'tick_duration_seconds': 60,        # 每tick对应的实际秒数（60=1tick/分钟）
+            'tick_duration_seconds': 60,        # 每tick对应的实际秒数
             'peak_hours': {                     # 就餐高峰期定义
                 'lunch': ('11:30', '12:20'),    # 午餐高峰期
                 'dinner': ('18:00', '19:00'),   # 晚餐高峰期

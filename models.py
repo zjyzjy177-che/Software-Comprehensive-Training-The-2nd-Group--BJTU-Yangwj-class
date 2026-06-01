@@ -435,6 +435,13 @@ class Window:
 
         # 如果窗口空闲且队列不为空，开始服务下一个学生
         if not self.is_serving and len(self.queue) > 0:
+            # 检查并跳过已离开的学生
+            while self.queue and self.queue[0].state != StudentState.QUEUING:
+                self.queue.pop(0)
+
+            if not self.queue:
+                return False
+
             # 从队列头部取出学生（FIFO）
             student = self.queue.pop(0)
 

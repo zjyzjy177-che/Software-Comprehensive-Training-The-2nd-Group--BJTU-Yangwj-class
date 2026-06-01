@@ -1212,7 +1212,7 @@ class CanteenVisualizer:
         for student in students:
             if student.state == StudentState.WALKING:
                 state_counts[walking_key] += 1
-            elif True:  # fallthrough
+            elif student.state == StudentState.QUEUING:
                 state_counts[queuing_key] += 1
             elif student.state == StudentState.EATING:
                 state_counts[eating_key] += 1

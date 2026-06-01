@@ -715,26 +715,22 @@ class SimulationEngine:
             # 更新学生状态
             is_active = student.update_state(self.map_boundaries)
 
-            # 检查学生是否需要加入食堂队列（食堂营业中才允许）
-            if (student.state == StudentState.QUEUING
+            h_t, m_t = self._tick_to_sim_time(self.current_tick)
+            is_open = self._is_canteen_open(f"{h_t:02d}:{m_t:02d}")
+
+            # 食堂关闭时，所有还没吃上饭的学生离开
+            if not is_open and student.state in (StudentState.WALKING, StudentState.QUEUING):
+                student.state = StudentState.LEAVING
+                student.state_timer = 0
+
+
+            # 食堂营业中：排队学生加入窗口
+            if is_open and (student.state == StudentState.QUEUING
                     and student.target_canteen_id is not None
                     and student.target_window_id is None):
-                h, m = self._tick_to_sim_time(self.current_tick)
-                if self._is_canteen_open(f"{h:02d}:{m:02d}"):
-                    target_canteen = self._find_canteen_by_id(student.target_canteen_id)
-                    if target_canteen:
-                        target_canteen.add_student_to_queue(student)
-                else:
-                    # 食堂打烊了，让未就餐的学生离开
-                    student.state = StudentState.LEAVING
-                    student.state_timer = 0
-
-            # 食堂关闭时，还没到食堂的学生也离开
-            if student.state == StudentState.WALKING:
-                h2, m2 = self._tick_to_sim_time(self.current_tick)
-                if not self._is_canteen_open(f"{h2:02d}:{m2:02d}"):
-                    student.state = StudentState.LEAVING
-                    student.state_timer = 0
+                target_canteen = self._find_canteen_by_id(student.target_canteen_id)
+                if target_canteen:
+                    target_canteen.add_student_to_queue(student)
 
             # 如果学生已离开，标记为待移除
             if not is_active:
