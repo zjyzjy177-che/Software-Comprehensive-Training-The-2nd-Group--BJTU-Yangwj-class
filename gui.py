@@ -1866,12 +1866,17 @@ class BJTUSimulationGUI:
                     self.stop_btn.pack_forget()
                     self.btn_peak._lbl.config(text=self.t("peak_shift_btn"))
                     try:
-                        from peak_shift import plot_comparison
+                        import matplotlib.pyplot as _plt
+                        _plt.ioff()
                         import os as _os
-                        output_path = _os.path.join(_os.path.expanduser("~"), "Desktop", "peak_shift")
-                        plot_comparison(results, output_path)
+                        _op = _os.path.join(_os.path.expanduser("~"), "Desktop", "peak_shift")
+                        from peak_shift import plot_comparison
+                        plot_comparison(results, _op)
+                        _plt.close('all')
+                        self.result_text.insert(tk.END, f"\n图表已保存至桌面\n")
                     except Exception as pe:
-                        self.result_text.insert(tk.END, f"\n图表生成失败: {pe}\n")
+                        import traceback as _tb
+                        self.result_text.insert(tk.END, f"\n图表生成失败: {pe}\n{_tb.format_exc()}\n")
                     self.result_text.delete("1.0", tk.END)
                     self.result_text.insert(tk.END, "=" * 50 + "\n")
                     self.result_text.insert(tk.END, "  错峰下课方案对比 — 完成\n")
