@@ -120,7 +120,7 @@ def export_excel(engine_or_stats, filepath: str = "simulation_report.xlsx",
         for i, (cname, cinfo) in enumerate(cs.items()):
             row = 16 + i
             cap = cinfo.get('capacity', 1)
-            util = f"{cinfo.get('current_queue', 0) / max(cap, 1) * 100:.0f}%"
+            util = f"{cinfo.get('max_queue', 0) / max(cap, 1) * 100:.0f}%"
             vals = [cname, cinfo.get('served', 0), cinfo.get('current_queue', 0),
                     cinfo.get('max_queue', 0), cap, util]
             for col, v in enumerate(vals, 1):
@@ -249,12 +249,12 @@ def export_docx(engine_or_stats, filepath: str = "simulation_report.docx",
         doc.add_heading("二、食堂运营详情", level=1)
         for cname, cinfo in cs.items():
             cap = cinfo.get('capacity', 1)
-            util = cinfo.get('current_queue', 0) / max(cap, 1) * 100
+            util = cinfo.get('max_queue', 0) / max(cap, 1) * 100
             doc.add_paragraph(
                 f"▸ {cname}：已服务 {cinfo.get('served', 0)} 人，"
                 f"当前排队 {cinfo.get('current_queue', 0)} 人，"
                 f"历史峰值 {cinfo.get('max_queue', 0)} 人，"
-                f"容量 {cap} 人，利用率 {util:.1f}%",
+                f"容量 {cap} 人，峰值利用率 {util:.1f}%",
                 style='List Bullet')
 
     # 三、错峰建议
