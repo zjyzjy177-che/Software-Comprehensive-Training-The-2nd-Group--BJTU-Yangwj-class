@@ -3,7 +3,7 @@
 
 #define MyAppName "BJTUCanteenSimulation"
 #define MyAppNameCN "BJTU 食堂就餐流量仿真系统"
-#define MyAppVersion "3.4"
+#define MyAppVersion "0.0.0"
 #define MyAppPublisher "BJTU 软件综合实训 第二小组"
 #define MyAppURL "https://www.bjtu.edu.cn"
 #define MyAppExeName "BJTUCanteenSimulation.exe"
