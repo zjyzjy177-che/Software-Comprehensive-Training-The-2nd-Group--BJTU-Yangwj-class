@@ -208,6 +208,7 @@ __marimo__/
 
 # macOS ignorance
 .DS_Store
+*.dmg
 
 # 仿真输出文件
 simulation_results*.json
